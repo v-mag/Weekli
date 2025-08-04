@@ -1,11 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../providers/transaction_provider.dart';
 import '../models/transaction.dart' as model;
+import '../models/category_budget.dart';
+import '../theme/app_theme.dart';
+import '../widgets/transaction_form_components.dart';
+import 'wizard_steps/type_selection_step.dart';
+import 'wizard_steps/manual_entry_step.dart';
+import 'wizard_steps/confirmation_step.dart';
+import 'wizard_steps/budget_entry_step.dart';
+
+// Button states for confirmation step
+enum ButtonState { normal, loading, confirmed }
 
 class AddTransactionWizard extends StatefulWidget {
   const AddTransactionWizard({super.key});
@@ -17,22 +28,32 @@ class AddTransactionWizard extends StatefulWidget {
 class _AddTransactionWizardState extends State<AddTransactionWizard> {
   final PageController _pageController = PageController();
   int _currentStep = 0;
-  final int _totalSteps = 4;
+  // Dynamic total steps based on transaction mode
+  int get _totalSteps {
+    if (_transactionMode == null) return 1;
+    return _transactionMode == TransactionMode.budget ? 4 : 4;
+  }
 
   // Transaction data
   model.TransactionType _transactionType = model.TransactionType.income;
-  bool _isManualEntry = true;
+  TransactionMode? _transactionMode;
+
   File? _receiptImage;
   
   final _titleController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _amountController = TextEditingController();
   final _categoryController = TextEditingController();
+  
+  // Amount controllers for multiple amounts
+  final List<TextEditingController> _amountControllers = [TextEditingController()];
+  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
   
   DateTime _selectedDate = DateTime.now();
   model.RecurrenceType _recurrenceType = model.RecurrenceType.none;
   DateTime? _recurrenceEndDate;
-  bool _isLoading = false;
+  ButtonState _buttonState = ButtonState.normal;
+  
+  // Loading screen state
+  bool _showSuccessCheck = false;
 
   final List<String> _incomeCategories = [
     'Salary',
@@ -57,14 +78,119 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
     'Other Expense',
   ];
 
+
+
   @override
   void dispose() {
     _pageController.dispose();
     _titleController.dispose();
-    _descriptionController.dispose();
-    _amountController.dispose();
     _categoryController.dispose();
+    
+    // Dispose all amount controllers
+    for (var controller in _amountControllers) {
+      controller.dispose();
+    }
+    
     super.dispose();
+  }
+
+  List<Widget> _buildPages() {
+    if (_transactionMode == null) {
+      return [
+        TypeSelectionStep(
+          selectedMode: _transactionMode,
+          onModeSelected: (mode) {
+            setState(() {
+              _transactionMode = mode;
+              if (mode == TransactionMode.budget) {
+                _selectedDate = _getWeekStart(DateTime.now());
+              } else {
+                _selectedDate = DateTime.now();
+              }
+            });
+            _showTransactionTypeSelector();
+          },
+        ),
+      ];
+    } else if (_transactionMode == TransactionMode.budget) {
+      return [
+        TypeSelectionStep(
+          selectedMode: _transactionMode,
+          onModeSelected: (mode) {
+            setState(() {
+              _transactionMode = mode;
+              if (mode == TransactionMode.budget) {
+                _selectedDate = _getWeekStart(DateTime.now());
+              } else {
+                _selectedDate = DateTime.now();
+              }
+            });
+            _showTransactionTypeSelector();
+          },
+        ),
+        BudgetEntryStep(
+          transactionType: _transactionType,
+          categoryController: _categoryController,
+          amountControllers: _amountControllers,
+          selectedDate: _selectedDate,
+          onWeekTap: _selectWeek,
+          onNext: _validateBudgetAndNext,
+        ),
+        ConfirmationStep(
+          transactionMode: _transactionMode!,
+          transactionType: _transactionType,
+          title: _titleController.text.trim(),
+          totalAmount: _getTotalAmount(),
+          category: _categoryController.text.isNotEmpty ? _categoryController.text : null,
+          selectedDate: _selectedDate,
+          recurrenceType: _recurrenceType,
+          recurrenceEndDate: _recurrenceEndDate,
+          onSave: _saveTransaction,
+          onBack: _previousStep,
+        ),
+        _buildLoadingStep(),
+      ];
+    } else {
+      return [
+        TypeSelectionStep(
+          selectedMode: _transactionMode,
+          onModeSelected: (mode) {
+            setState(() {
+              _transactionMode = mode;
+              if (mode == TransactionMode.budget) {
+                _selectedDate = _getWeekStart(DateTime.now());
+              } else {
+                _selectedDate = DateTime.now();
+              }
+            });
+            _showTransactionTypeSelector();
+          },
+        ),
+        ManualEntryStep(
+          transactionMode: _transactionMode!,
+          transactionType: _transactionType,
+          titleController: _titleController,
+          categoryController: _categoryController,
+          amountControllers: _amountControllers,
+          selectedDate: _selectedDate,
+          onDateTap: _selectDate,
+          onNext: _validateAndNext,
+        ),
+        ConfirmationStep(
+          transactionMode: _transactionMode!,
+          transactionType: _transactionType,
+          title: _titleController.text.trim(),
+          totalAmount: _getTotalAmount(),
+          category: _categoryController.text.isNotEmpty ? _categoryController.text : null,
+          selectedDate: _selectedDate,
+          recurrenceType: _recurrenceType,
+          recurrenceEndDate: _recurrenceEndDate,
+          onSave: _saveTransaction,
+          onBack: _previousStep,
+        ),
+        _buildLoadingStep(),
+      ];
+    }
   }
 
   void _nextStep() {
@@ -91,6 +217,16 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
     }
   }
 
+  String _getAppBarTitle() {
+    if (_transactionMode == null || _currentStep == 0) {
+      return 'Add Entry';
+    } else if (_transactionMode == TransactionMode.budget) {
+      return 'Add Budget Entry';
+    } else {
+      return 'Add Transaction';
+    }
+  }
+
   void _showRecurrenceOptions() {
     showCupertinoModalPopup(
       context: context,
@@ -107,9 +243,9 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
     );
   }
 
-  Future<void> _pickImage() async {
+  Future<void> _pickImage(ImageSource source) async {
     final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.camera);
+    final XFile? image = await picker.pickImage(source: source);
     
     if (image != null) {
       setState(() {
@@ -120,32 +256,25 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
 
   @override
   Widget build(BuildContext context) {
+    final double progressValue = _totalSteps <= 1 ? 0.0 : _currentStep / (_totalSteps - 1);
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Add Transaction (${_currentStep + 1}/$_totalSteps)'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: Text(_getAppBarTitle()),
+        backgroundColor: AppTheme.primaryColor,
+        foregroundColor: Colors.white,
         leading: _currentStep > 0
             ? IconButton(
-                icon: const Icon(Icons.arrow_back),
+                icon: Icon(Icons.adaptive.arrow_back),
                 onPressed: _previousStep,
               )
-            : IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.pop(context),
-              ),
+            : null,
         actions: [
-          if (_currentStep >= 2)
-            IconButton(
-              icon: Icon(
-                _recurrenceType != model.RecurrenceType.none
-                    ? Icons.repeat
-                    : Icons.repeat_outlined,
-                color: _recurrenceType != model.RecurrenceType.none
-                    ? Colors.blue
-                    : null,
-              ),
-              onPressed: _showRecurrenceOptions,
-            ),
+          IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => Navigator.pop(context),
+          ),
         ],
       ),
       body: Column(
@@ -153,13 +282,19 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
           // Progress indicator
           Container(
             padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              border: Border(
+                bottom: BorderSide(color: Theme.of(context).dividerColor, width: 0.5),
+              ),
+            ),
             child: LinearProgressIndicator(
-              value: (_currentStep + 1) / _totalSteps,
-              backgroundColor: Colors.grey[300],
-              valueColor: AlwaysStoppedAnimation<Color>(
-                _transactionType == model.TransactionType.income
-                    ? Colors.green
-                    : Colors.red,
+              value: progressValue,
+              backgroundColor: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.grey.shade800
+                  : Colors.grey.shade300,
+              valueColor: const AlwaysStoppedAnimation<Color>(
+                AppTheme.primaryColor,
               ),
             ),
           ),
@@ -169,12 +304,7 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
             child: PageView(
               controller: _pageController,
               physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _buildTypeSelectionStep(),
-                _buildInputMethodStep(),
-                _buildManualEntryStep(),
-                _buildConfirmationStep(),
-              ],
+              children: _buildPages(),
             ),
           ),
         ],
@@ -186,104 +316,239 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'What type of transaction?',
+            'What type of entry?',
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 48),
+          const SizedBox(height: 32),
           
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _transactionType = model.TransactionType.income;
-                    });
-                    _nextStep();
-                  },
-                  child: Container(
-                    height: 150,
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Colors.green,
-                        width: 2,
-                      ),
-                    ),
-                    child: const Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.add_circle, color: Colors.green, size: 48),
-                        SizedBox(height: 8),
-                        Text(
-                          'Income',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
-                        ),
-                        Text(
-                          'Money coming in',
-                          style: TextStyle(color: Colors.green),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              
-              const SizedBox(width: 16),
-              
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _transactionType = model.TransactionType.expense;
-                    });
-                    _nextStep();
-                  },
-                  child: Container(
-                    height: 150,
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Colors.red,
-                        width: 2,
-                      ),
-                    ),
-                    child: const Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.remove_circle, color: Colors.red, size: 48),
-                        SizedBox(height: 8),
-                        Text(
-                          'Expense',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red,
-                          ),
-                        ),
-                        Text(
-                          'Money going out',
-                          style: TextStyle(color: Colors.red),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          // Actual Transaction Card
+          _buildSelectionCard(
+            title: 'Actual Transaction',
+            subtitle: 'Record a real transaction that happened',
+            icon: Icons.receipt_long,
+            color: AppTheme.primaryColor,
+            isSelected: _transactionMode == TransactionMode.actual,
+            onTap: () {
+              setState(() {
+                _transactionMode = TransactionMode.actual;
+              });
+              _showTransactionTypeSelector();
+            },
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Budget Entry Card
+          _buildSelectionCard(
+            title: 'Budget Entry',
+            subtitle: 'Set expected amount for a category this week',
+            icon: Icons.trending_up,
+            color: AppTheme.primaryColor,
+            isSelected: _transactionMode == TransactionMode.budget,
+            onTap: () {
+              setState(() {
+                _transactionMode = TransactionMode.budget;
+                // Initialize to current week start for budget entries
+                _selectedDate = _getWeekStart(DateTime.now());
+              });
+              _showTransactionTypeSelector();
+            },
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSelectionCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withOpacity(0.1) : AppTheme.backgroundColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? color : AppTheme.borderColor,
+            width: 2,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: color.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                icon,
+                color: Colors.white,
+                size: 32,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryTextColor,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: AppTheme.secondaryTextColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTransactionTypeSelector() {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) {
+        final theme = Theme.of(context);
+        return Material(
+          color: Colors.transparent,
+          child: Container(
+            height: 300,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  _transactionMode == TransactionMode.actual 
+                      ? 'Transaction Type' 
+                      : 'Budget Type',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                
+                // Income Option
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                                      setState(() {
+                    _transactionType = model.TransactionType.income;
+                    // Force rebuild of pages when transaction type changes
+                    _currentStep = _currentStep;
+                  });
+                  Navigator.pop(context);
+                  _nextStep();
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.incomeColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.incomeColor),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.trending_up, color: AppTheme.incomeColor),
+                          const SizedBox(width: 12),
+                          Text(
+                            _transactionMode == TransactionMode.actual ? 'Income' : 'Expected Income',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                
+                // Expense Option
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                                      setState(() {
+                    _transactionType = model.TransactionType.expense;
+                    // Force rebuild of pages when transaction type changes
+                    _currentStep = _currentStep;
+                  });
+                  Navigator.pop(context);
+                  _nextStep();
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.expenseColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.expenseColor),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.trending_down, color: AppTheme.expenseColor),
+                          const SizedBox(width: 12),
+                          Text(
+                            _transactionMode == TransactionMode.actual ? 'Expense' : 'Expected Expense',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -303,34 +568,39 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
           // Manual entry option
           GestureDetector(
             onTap: () {
-              setState(() {
-                _isManualEntry = true;
-              });
+              // Manual entry selected
               _nextStep();
             },
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
+                color: AppTheme.backgroundColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.blue, width: 2),
+                border: Border.all(color: AppTheme.primaryBlue, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryBlue.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: const Column(
                 children: [
-                  Icon(Icons.edit, color: Colors.blue, size: 48),
+                  Icon(Icons.edit, color: AppTheme.primaryBlue, size: 48),
                   SizedBox(height: 12),
                   Text(
                     'Manual Entry',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.blue,
+                      color: AppTheme.primaryBlue,
                     ),
                   ),
                   Text(
                     'Fill in the details yourself',
-                    style: TextStyle(color: Colors.blue),
+                    style: TextStyle(color: AppTheme.secondaryTextColor),
                   ),
                 ],
               ),
@@ -342,35 +612,40 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
           // Automatic with photo option
           GestureDetector(
             onTap: () {
-              setState(() {
-                _isManualEntry = false;
-              });
-              _pickImage();
+              // Receipt capture selected
+              _pickImage(ImageSource.camera);
               _nextStep();
             },
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.purple.withOpacity(0.1),
+                color: AppTheme.backgroundColor,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.purple, width: 2),
+                border: Border.all(color: AppTheme.primaryPurple, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryPurple.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: const Column(
                 children: [
-                  Icon(Icons.camera_alt, color: Colors.purple, size: 48),
+                  Icon(Icons.camera_alt, color: AppTheme.primaryPurple, size: 48),
                   SizedBox(height: 12),
                   Text(
                     'Scan Receipt',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.purple,
+                      color: AppTheme.primaryPurple,
                     ),
                   ),
                   Text(
                     'Take a photo and auto-fill',
-                    style: TextStyle(color: Colors.purple),
+                    style: TextStyle(color: AppTheme.secondaryTextColor),
                   ),
                 ],
               ),
@@ -392,7 +667,8 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          if (!_isManualEntry && _receiptImage != null) ...[
+          // Show receipt photo only for actual transactions with auto capture
+          if (_transactionMode == TransactionMode.actual && _receiptImage != null) ...[
             const Text(
               'Receipt Photo',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
@@ -417,76 +693,60 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
             const SizedBox(height: 16),
           ],
           
-          // Title field
-          const Text(
-            'Title',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          // Title field - only for actual transactions
+          if (_transactionMode == TransactionMode.actual) ...[
+            const Text(
+              'Title',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppTheme.primaryTextColor),
+            ),
+            const SizedBox(height: 8),
+            CupertinoTextField(
+              controller: _titleController,
+              placeholder: 'Enter transaction title',
+              maxLength: 64,
+              padding: const EdgeInsets.all(16),
+              decoration: AppTheme.cupertinoTextFieldDecoration,
+              style: const TextStyle(color: AppTheme.primaryTextColor),
+              placeholderStyle: const TextStyle(color: AppTheme.placeholderTextColor),
+            ),
+            const SizedBox(height: 16),
+          ],
+          
+          // Amount fields
+          Row(
+            children: [
+              Text(
+                _transactionMode == TransactionMode.budget ? 'Expected Amount' : 'Amount',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppTheme.primaryTextColor),
+              ),
+              const Spacer(),
+              if (_amountControllers.length > 1)
+                Text(
+                  'Total: \$${_getTotalAmount().toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.primaryColor,
+                  ),
+                ),
+            ],
           ),
           const SizedBox(height: 8),
-          CupertinoTextField(
-            controller: _titleController,
-            placeholder: 'Enter transaction title',
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border.all(color: CupertinoColors.systemGrey4),
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          // Amount field
-          const Text(
-            'Amount',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 8),
-          CupertinoTextField(
-            controller: _amountController,
-            placeholder: '0.00',
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            prefix: const Padding(
-              padding: EdgeInsets.only(left: 16),
-              child: Text('\$', style: TextStyle(fontSize: 18)),
-            ),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border.all(color: CupertinoColors.systemGrey4),
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          const SizedBox(height: 16),
-          
+          _buildAmountFields(),
+
           // Category field
           const Text(
             'Category',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppTheme.primaryTextColor),
           ),
           const SizedBox(height: 8),
           _buildCategoryAutocomplete(),
           const SizedBox(height: 16),
-          
-          // Description field
-          const Text(
-            'Description (Optional)',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          ),
-          const SizedBox(height: 8),
-          CupertinoTextField(
-            controller: _descriptionController,
-            placeholder: 'Add a note...',
-            maxLines: 3,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border.all(color: CupertinoColors.systemGrey4),
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          const SizedBox(height: 16),
-          
+                  
           // Date field
           const Text(
             'Date',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppTheme.primaryTextColor),
           ),
           const SizedBox(height: 8),
           GestureDetector(
@@ -494,15 +754,15 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border.all(color: CupertinoColors.systemGrey4),
-                borderRadius: BorderRadius.circular(8),
-              ),
+              decoration: AppTheme.cupertinoTextFieldDecoration,
               child: Row(
                 children: [
-                  const Icon(CupertinoIcons.calendar),
+                  const Icon(CupertinoIcons.calendar, color: AppTheme.primaryColor),
                   const SizedBox(width: 12),
-                  Text(DateFormat('MMM dd, yyyy').format(_selectedDate)),
+                  Text(
+                    DateFormat('MMM dd, yyyy').format(_selectedDate),
+                    style: const TextStyle(color: AppTheme.primaryTextColor),
+                  ),
                 ],
               ),
             ),
@@ -512,11 +772,13 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
           // Next button
           SizedBox(
             width: double.infinity,
-            child: CupertinoButton.filled(
+            child: CupertinoButton(
               onPressed: _validateAndNext,
-              child: const Text(
-                'Continue',
-                style: TextStyle(color: CupertinoColors.white),
+              color: AppTheme.primaryColor,
+              borderRadius: BorderRadius.circular(12),
+              child: Text(
+                _transactionMode == TransactionMode.budget ? 'Set Budget' : 'Continue',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -545,16 +807,23 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: (_transactionType == model.TransactionType.income
-                  ? Colors.green
-                  : Colors.red).withOpacity(0.1),
+              color: AppTheme.backgroundColor,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: _transactionType == model.TransactionType.income
-                    ? Colors.green
-                    : Colors.red,
+                    ? AppTheme.incomeColor
+                    : AppTheme.expenseColor,
                 width: 2,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: (_transactionType == model.TransactionType.income
+                      ? AppTheme.incomeColor
+                      : AppTheme.expenseColor).withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -563,11 +832,11 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
                   children: [
                     Icon(
                       _transactionType == model.TransactionType.income
-                          ? Icons.add_circle
-                          : Icons.remove_circle,
+                          ? Icons.trending_up
+                          : Icons.trending_down,
                       color: _transactionType == model.TransactionType.income
-                          ? Colors.green
-                          : Colors.red,
+                          ? AppTheme.incomeColor
+                          : AppTheme.expenseColor,
                       size: 32,
                     ),
                     const SizedBox(width: 12),
@@ -588,8 +857,8 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
                                 : 'Expense',
                             style: TextStyle(
                               color: _transactionType == model.TransactionType.income
-                                  ? Colors.green
-                                  : Colors.red,
+                                  ? AppTheme.incomeColor
+                                  : AppTheme.expenseColor,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
@@ -597,13 +866,13 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
                       ),
                     ),
                     Text(
-                      currencyFormat.format(double.tryParse(_amountController.text) ?? 0),
+                      currencyFormat.format(_getTotalAmount()),
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: _transactionType == model.TransactionType.income
-                            ? Colors.green
-                            : Colors.red,
+                            ? AppTheme.incomeColor
+                            : AppTheme.expenseColor,
                       ),
                     ),
                   ],
@@ -615,16 +884,66 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
                   const SizedBox(height: 8),
                 ],
                 
-                if (_descriptionController.text.isNotEmpty) ...[
-                  _buildDetailRow('Description', _descriptionController.text),
-                  const SizedBox(height: 8),
-                ],
+                const SizedBox(height: 8),
                 
                 _buildDetailRow('Date', DateFormat('MMM dd, yyyy').format(_selectedDate)),
-                
+                const SizedBox(height: 8),
+                _buildDetailRow('Recurrence', _getRecurrenceText(_recurrenceType)),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Recurrence settings section
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.backgroundColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.borderColor, width: 1),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.repeat, color: AppTheme.primaryColor),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Recurrence',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.primaryTextColor,
+                      ),
+                    ),
+                    const Spacer(),
+                    CupertinoButton(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      minSize: 0,
+                      onPressed: _showRecurrenceOptions,
+                      child: Text(
+                        _getRecurrenceText(_recurrenceType),
+                        style: const TextStyle(
+                          color: AppTheme.primaryColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 if (_recurrenceType != model.RecurrenceType.none) ...[
                   const SizedBox(height: 8),
-                  _buildDetailRow('Recurrence', _getRecurrenceText(_recurrenceType)),
+                  Text(
+                    'This transaction will repeat ${_getRecurrenceText(_recurrenceType).toLowerCase()}',
+                    style: const TextStyle(
+                      color: AppTheme.secondaryTextColor,
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ],
             ),
@@ -632,29 +951,366 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
           
           const Spacer(),
           
-          // Action buttons
-          Row(
-            children: [
-              Expanded(
-                child: CupertinoButton(
-                  onPressed: _previousStep,
-                  child: const Text('Back'),
+          // Action button - only add transaction button
+          SizedBox(
+            width: double.infinity,
+            child: CupertinoButton(
+              onPressed: _saveTransaction,
+              color: AppTheme.primaryColor,
+              borderRadius: BorderRadius.circular(12),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: const Text(
+                'Add Transaction',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                flex: 2,
-                child: CupertinoButton.filled(
-                  onPressed: _isLoading ? null : _saveTransaction,
-                  child: _isLoading
-                      ? const CupertinoActivityIndicator(color: CupertinoColors.white)
-                      : const Text(
-                          'Add Transaction',
-                          style: TextStyle(color: CupertinoColors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
+  Widget _buildLoadingStep() {
+    return Container(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Spacer(),
+          
+          // Loading animation area
+          SizedBox(
+            width: 120,
+            height: 120,
+                         child: AnimatedSwitcher(
+               duration: const Duration(milliseconds: 600),
+              transitionBuilder: (Widget child, Animation<double> animation) {
+                return ScaleTransition(
+                  scale: animation,
+                  child: FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  ),
+                );
+              },
+              child: _showSuccessCheck
+                  ? Container(
+                      key: const ValueKey('success'),
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: AppTheme.incomeColor,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.incomeColor.withOpacity(0.3),
+                            blurRadius: 20,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.check,
+                        color: Colors.white,
+                        size: 60,
+                      ),
+                    )
+                  : Container(
+                      key: const ValueKey('loading'),
+                      width: 120,
+                      height: 120,
+                      padding: const EdgeInsets.all(30),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 6,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppTheme.primaryColor,
                         ),
+                      ),
+                    ),
+            ),
+          ),
+          
+          const SizedBox(height: 32),
+          
+                     // Status text
+           AnimatedSwitcher(
+             duration: const Duration(milliseconds: 400),
+            child: Text(
+              _showSuccessCheck 
+                  ? (_transactionMode == TransactionMode.budget ? 'Budget Created!' : 'Transaction Added!')
+                  : (_transactionMode == TransactionMode.budget ? 'Creating Budget...' : 'Adding Transaction...'),
+              key: ValueKey(_showSuccessCheck),
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: _showSuccessCheck 
+                    ? AppTheme.incomeColor 
+                    : AppTheme.primaryTextColor,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          
+          const SizedBox(height: 8),
+          
+          Text(
+            _showSuccessCheck 
+                ? 'Redirecting to dashboard...' 
+                : (_transactionMode == TransactionMode.budget 
+                    ? 'Please wait while we create your budget entry'
+                    : 'Please wait while we process your transaction'),
+            style: const TextStyle(
+              fontSize: 16,
+              color: AppTheme.secondaryTextColor,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          
+          const Spacer(),
+        ],
+      ),
+    );
+  }
+
+
+
+  Widget _buildBudgetEntryStep() {
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+      },
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Expected Amount field
+            const Text(
+              'Expected Amount',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppTheme.primaryTextColor),
+            ),
+            const SizedBox(height: 8),
+            CupertinoTextField(
+              controller: _amountControllers[0],
+              placeholder: 'Expected amount',
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+              ],
+              padding: const EdgeInsets.all(16),
+              decoration: AppTheme.cupertinoTextFieldDecoration,
+              style: const TextStyle(color: AppTheme.primaryTextColor),
+              placeholderStyle: const TextStyle(color: AppTheme.placeholderTextColor),
+            ),
+            const SizedBox(height: 16),
+
+            // Category field
+            const Text(
+              'Category',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppTheme.primaryTextColor),
+            ),
+            const SizedBox(height: 8),
+            _buildCategoryAutocomplete(),
+            const SizedBox(height: 16),
+            
+            // Week selector
+            const Text(
+              'Week',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppTheme.primaryTextColor),
+            ),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () => _selectWeek(context),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: AppTheme.cupertinoTextFieldDecoration,
+                child: Row(
+                  children: [
+                    const Icon(CupertinoIcons.calendar, color: AppTheme.primaryColor),
+                    const SizedBox(width: 12),
+                    Text(
+                      _getWeekRangeText(_selectedDate),
+                      style: const TextStyle(color: AppTheme.primaryTextColor),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
+            const SizedBox(height: 32),
+            
+            // Continue button
+            SizedBox(
+              width: double.infinity,
+              child: CupertinoButton(
+                onPressed: _validateBudgetAndNext,
+                color: AppTheme.primaryColor,
+                borderRadius: BorderRadius.circular(12),
+                child: const Text(
+                  'Review Budget',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBudgetConfirmationStep() {
+    final currencyFormat = NumberFormat.currency(symbol: '\$');
+    
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Review Budget Entry',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 24),
+          
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppTheme.cardBackground,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _transactionType == model.TransactionType.income
+                                ? 'Expected Income Budget' 
+                                : 'Expected Expense Budget',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Category: ${_categoryController.text}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: AppTheme.secondaryTextColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      currencyFormat.format(double.tryParse(_amountControllers[0].text) ?? 0),
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: _transactionType == model.TransactionType.income
+                            ? AppTheme.incomeColor
+                            : AppTheme.expenseColor,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                _buildDetailRow('Week', _getWeekRangeText(_selectedDate)),
+                const SizedBox(height: 8),
+                _buildDetailRow('Type', _transactionType == model.TransactionType.income ? 'Expected Income' : 'Expected Expense'),
+              ],
+            ),
+          ),
+          
+          const Spacer(),
+          
+          // Recurrence section (if needed)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Text(
+                      'Repeat Budget',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.primaryTextColor,
+                      ),
+                    ),
+                    const Spacer(),
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: _showRecurrenceOptions,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _getRecurrenceText(_recurrenceType),
+                            style: const TextStyle(
+                              color: AppTheme.primaryColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            CupertinoIcons.chevron_right,
+                            size: 16,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Create Budget button
+          SizedBox(
+            width: double.infinity,
+            child: CupertinoButton(
+              onPressed: _saveTransaction,
+              color: AppTheme.primaryColor,
+              borderRadius: BorderRadius.circular(12),
+              child: const Text(
+                'Create Budget',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 18,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -667,18 +1323,21 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
       children: [
         SizedBox(
           width: 100,
-          child: Text(
+                      child: Text(
             label,
             style: const TextStyle(
               fontWeight: FontWeight.w500,
-              color: CupertinoColors.secondaryLabel,
+              color: AppTheme.secondaryTextColor,
             ),
           ),
         ),
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(fontWeight: FontWeight.w500),
+            style: const TextStyle(
+              fontWeight: FontWeight.w500,
+              color: AppTheme.primaryTextColor,
+            ),
           ),
         ),
       ],
@@ -763,9 +1422,16 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
                         constraints: const BoxConstraints(maxHeight: 200),
                         width: MediaQuery.of(context).size.width - 48, // Account for padding
                         decoration: BoxDecoration(
-                          color: CupertinoColors.systemBackground.resolveFrom(context),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: CupertinoColors.systemGrey4),
+                          color: AppTheme.backgroundColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.borderColor),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: ListView.builder(
                           padding: EdgeInsets.zero,
@@ -779,30 +1445,31 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
                               },
                               child: Container(
                                 padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  border: Border(
-                                    bottom: BorderSide(
-                                      color: CupertinoColors.systemGrey5.resolveFrom(context),
-                                      width: 0.5,
-                                    ),
+                                                              decoration: BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                    color: AppTheme.borderColor,
+                                    width: 0.5,
                                   ),
                                 ),
+                              ),
                                 child: Row(
                                   children: [
                                     Icon(
                                       _getCategoryIcon(option),
                                       size: 20,
-                                      color: _transactionType == model.TransactionType.income
-                                          ? Colors.green
-                                          : Colors.red,
+                                      color: AppTheme.primaryColor,
                                     ),
                                     const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Text(
-                                        option,
-                                        style: const TextStyle(fontSize: 16),
+                                                                      Expanded(
+                                    child: Text(
+                                      option,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        color: AppTheme.primaryTextColor,
                                       ),
                                     ),
+                                  ),
                                   ],
                                 ),
                               ),
@@ -862,30 +1529,136 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
     }
   }
 
-  void _selectDate() {
-    showCupertinoModalPopup(
+  Future<void> _selectDate() async {
+    final DateTime? picked = await showDatePicker(
       context: context,
-      builder: (context) => Container(
-        height: 250,
-        color: CupertinoColors.systemBackground.resolveFrom(context),
-        child: CupertinoDatePicker(
-          mode: CupertinoDatePickerMode.date,
-          initialDateTime: _selectedDate,
-          onDateTimeChanged: (date) {
-            setState(() {
-              _selectedDate = date;
-            });
-          },
-        ),
-      ),
+      initialDate: _selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+      builder: (context, child) {
+        final theme = Theme.of(context);
+        return Theme(
+          data: Theme.of(context).copyWith(
+            dialogBackgroundColor: theme.brightness == Brightness.light ? Colors.white : null,
+            colorScheme: theme.colorScheme.copyWith(
+              primary: AppTheme.primaryColor, // header background color
+              onPrimary: Colors.white, // header text color
+              onSurface: theme.colorScheme.onSurface, // body text color
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.primaryColor, // button text color
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
+
+  // Budget-specific helper methods
+  Future<void> _selectWeek(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+      builder: (context, child) {
+        final theme = Theme.of(context);
+        return Theme(
+          data: theme.copyWith(
+            dialogBackgroundColor: theme.brightness == Brightness.light ? Colors.white : null,
+            colorScheme: theme.colorScheme.copyWith(
+              primary: AppTheme.primaryColor,
+              onPrimary: Colors.white,
+              onSurface: theme.colorScheme.onSurface,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.primaryColor,
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        _selectedDate = _getWeekStart(picked);
+      });
+    }
+  }
+
+  DateTime _getWeekStart(DateTime date) {
+    int daysFromMonday = date.weekday - 1;
+    return date.subtract(Duration(days: daysFromMonday));
+  }
+
+  String _getWeekRangeText(DateTime weekStart) {
+    DateTime weekEnd = weekStart.add(const Duration(days: 6));
+    
+    if (weekStart.year == weekEnd.year && weekStart.month == weekEnd.month) {
+      return '${DateFormat('MMM dd').format(weekStart)} - ${DateFormat('dd, yyyy').format(weekEnd)}';
+    } else if (weekStart.year == weekEnd.year) {
+      return '${DateFormat('MMM dd').format(weekStart)} - ${DateFormat('MMM dd, yyyy').format(weekEnd)}';
+    } else {
+      return '${DateFormat('MMM dd, yyyy').format(weekStart)} - ${DateFormat('MMM dd, yyyy').format(weekEnd)}';
+    }
+  }
+
+
+
+  bool _isCurrentWeek(DateTime weekStart) {
+    DateTime now = DateTime.now();
+    DateTime currentWeekStart = _getWeekStart(now);
+    return weekStart.year == currentWeekStart.year &&
+           weekStart.month == currentWeekStart.month &&
+           weekStart.day == currentWeekStart.day;
+  }
+
+  void _validateBudgetAndNext() {
+    final amount = double.tryParse(_amountControllers[0].text) ?? 0;
+    
+    if (amount <= 0 || _categoryController.text.trim().isEmpty) {
+      showCupertinoDialog(
+        context: context,
+        builder: (context) => CupertinoAlertDialog(
+          title: const Text('Missing Information'),
+          content: const Text('Please fill in the expected amount and category.'),
+          actions: [
+            CupertinoDialogAction(
+              child: const Text('OK'),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    
+    _nextStep();
   }
 
   void _validateAndNext() {
-    if (_titleController.text.trim().isEmpty ||
-        _amountController.text.trim().isEmpty ||
-        double.tryParse(_amountController.text) == null ||
-        double.tryParse(_amountController.text)! <= 0) {
+    final totalAmount = _getTotalAmount();
+    
+    // For budget entries, title is not required
+    bool titleRequired = _transactionMode == TransactionMode.actual;
+    bool missingTitle = titleRequired && _titleController.text.trim().isEmpty;
+    
+    if (missingTitle ||
+        totalAmount <= 0 ||
+        _categoryController.text.trim().isEmpty ||
+        _amountControllers.any((controller) => 
+          controller.text.trim().isNotEmpty && 
+          (double.tryParse(controller.text) == null || double.tryParse(controller.text)! <= 0))) {
       
       showCupertinoDialog(
         context: context,
@@ -922,37 +1695,51 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
   }
 
   Future<void> _saveTransaction() async {
-    setState(() {
-      _isLoading = true;
-    });
-
+    // Navigate to loading step
+    _nextStep();
+    
     try {
-      final transaction = model.Transaction(
-        title: _titleController.text.trim(),
-        description: _descriptionController.text.trim().isNotEmpty 
-            ? _descriptionController.text.trim() 
-            : null,
-        amount: double.parse(_amountController.text),
-        type: _transactionType,
-        date: _selectedDate,
-        category: _categoryController.text.isNotEmpty ? _categoryController.text : null,
-        recurrenceType: _recurrenceType,
-        recurrenceEndDate: _recurrenceEndDate,
-      );
-
-      await context.read<TransactionProvider>().addTransaction(transaction);
-
+      // Show loading circle for 1.2 seconds
+      await Future.delayed(const Duration(milliseconds: 1200));
+      
+      // Show success check
       if (mounted) {
-        Navigator.pop(context);
-        // Show success message
+        setState(() {
+          _showSuccessCheck = true;
+        });
+        
+        // Add haptic feedback
+        HapticFeedback.mediumImpact();
+      }
+      
+      if (_transactionMode == TransactionMode.budget) {
+        // Handle budget entry creation
+        await _saveBudgetEntry();
+      } else {
+        // Handle regular transaction creation
+        await _saveRegularTransaction();
+      }
+      
+      // Wait additional 1.5 seconds to show success, then navigate to dashboard
+      await Future.delayed(const Duration(milliseconds: 1500));
+      
+      if (mounted) {
+        // Navigate back to dashboard (HomeScreen)
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
       if (mounted) {
+        // Reset state and go back to confirmation step on error
+        setState(() {
+          _showSuccessCheck = false;
+        });
+        _previousStep();
+        
         showCupertinoDialog(
           context: context,
           builder: (context) => CupertinoAlertDialog(
             title: const Text('Error'),
-            content: Text('Failed to save transaction: $e'),
+            content: Text('Failed to save ${_transactionMode == TransactionMode.budget ? 'budget entry' : 'transaction'}: $e'),
             actions: [
               CupertinoDialogAction(
                 child: const Text('OK'),
@@ -962,13 +1749,191 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
           ),
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+    }
+  }
+
+  Future<void> _saveRegularTransaction() async {
+    final transaction = model.Transaction(
+      title: _titleController.text.trim(),
+      description: null,
+      amount: _getTotalAmount(),
+      type: _transactionType,
+      date: _selectedDate,
+      category: _categoryController.text.isNotEmpty ? _categoryController.text : null,
+      recurrenceType: _recurrenceType,
+      recurrenceEndDate: _recurrenceEndDate,
+    );
+
+    await context.read<TransactionProvider>().addTransaction(transaction);
+  }
+
+  Future<void> _saveBudgetEntry() async {
+    final categoryBudget = CategoryBudget(
+      category: _categoryController.text.trim(),
+      expectedAmount: double.parse(_amountControllers[0].text),
+      type: _transactionType,
+      weekStartDate: _getWeekStart(_selectedDate),
+      createdAt: DateTime.now(),
+    );
+
+    await context.read<TransactionProvider>().addCategoryBudget(categoryBudget);
+  }
+
+  Widget _buildAmountFields() {
+    return Column(
+      children: [
+        AnimatedList(
+          key: _listKey,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          initialItemCount: _amountControllers.length,
+          itemBuilder: (context, index, animation) {
+            // Safety check to prevent RangeError
+            if (index >= _amountControllers.length) {
+              return const SizedBox.shrink();
+            }
+            return _buildAmountFieldItem(index, animation);
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAmountFieldItem(int index, Animation<double> animation) {
+    return SlideTransition(
+      position: animation.drive(
+        Tween<Offset>(
+          begin: const Offset(1.0, 0.0),
+          end: Offset.zero,
+        ).chain(CurveTween(curve: Curves.easeOut)),
+      ),
+      child: FadeTransition(
+        opacity: animation,
+        child: Container(
+          margin: index != 0 ? const EdgeInsets.only(bottom: 8) : const EdgeInsets.only(bottom: 0),
+          child: Row(
+            children: [
+              // Remove button on the left for additional inputs
+              if (index > 0) ...[
+                GestureDetector(
+                  onTap: () => _removeAmountField(index),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    child: const Icon(
+                      Icons.trending_down,
+                      size: 20,
+                      color: AppTheme.expenseColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              
+              // Amount input field
+              Expanded(
+                child: CupertinoTextField(
+                  controller: _amountControllers[index],
+                  placeholder: _transactionMode == TransactionMode.budget 
+                      ? 'Expected amount' 
+                      : '0.00',
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+                  ],
+                  suffix: index == 0 && _amountControllers.length < 5 && _transactionMode == TransactionMode.actual
+                      ? Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: GestureDetector(
+                            onTap: _addAmountField,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              child: const Icon(
+                                Icons.add_circle_outline,
+                                size: 20,
+                                color: AppTheme.primaryColor,
+                              ),
+                            ),
+                          ),
+                        )
+                      : null,
+                  padding: const EdgeInsets.all(16),
+                  decoration: AppTheme.cupertinoTextFieldDecoration,
+                  style: const TextStyle(color: AppTheme.primaryTextColor),
+                  placeholderStyle: const TextStyle(color: AppTheme.placeholderTextColor),
+                  onChanged: (value) => setState(() {}), // Update total
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _addAmountField() {
+    if (_amountControllers.length < 5) {
+      final newIndex = _amountControllers.length;
+      _amountControllers.add(TextEditingController());
+      
+      _listKey.currentState?.insertItem(
+        newIndex,
+        duration: const Duration(milliseconds: 300),
+      );
+      
+      // Add haptic feedback for better UX
+      HapticFeedback.lightImpact();
+      
+      // Trigger rebuild to update the first field's suffix
+      setState(() {});
+    }
+  }
+
+  void _removeAmountField(int index) {
+    if (_amountControllers.length > 1 && index < _amountControllers.length) {
+      final controller = _amountControllers[index];
+      
+      // Remove from our data lists first
+      controller.dispose();
+      _amountControllers.removeAt(index);
+      
+      // Then trigger the animation
+      _listKey.currentState?.removeItem(
+        index,
+        (context, animation) => SlideTransition(
+          position: animation.drive(
+            Tween<Offset>(
+              begin: Offset.zero,
+              end: const Offset(1.0, 0.0),
+            ).chain(CurveTween(curve: Curves.easeOut)),
+          ),
+          child: FadeTransition(
+            opacity: animation,
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              height: 60, // Fixed height for smooth animation
+              child: const SizedBox(),
+            ),
+          ),
+        ),
+        duration: const Duration(milliseconds: 300),
+      );
+      
+      // Trigger rebuild to update the first field's suffix
+      setState(() {});
+      
+      // Add haptic feedback for better UX
+      HapticFeedback.lightImpact();
+    }
+  }
+
+  double _getTotalAmount() {
+    double total = 0.0;
+    for (var controller in _amountControllers) {
+      if (controller.text.trim().isNotEmpty) {
+        total += double.tryParse(controller.text) ?? 0.0;
       }
     }
+    return total;
   }
 }
 
@@ -1011,7 +1976,11 @@ class _RecurrencePopupState extends State<_RecurrencePopup> {
         children: [
           const Text(
             'Recurrence Settings',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 20, 
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryTextColor,
+            ),
           ),
           const SizedBox(height: 20),
           
@@ -1025,7 +1994,10 @@ class _RecurrencePopupState extends State<_RecurrencePopup> {
               },
               children: model.RecurrenceType.values.map((type) {
                 return Center(
-                  child: Text(_getRecurrenceText(type)),
+                  child: Text(
+                    _getRecurrenceText(type),
+                    style: const TextStyle(color: AppTheme.primaryTextColor),
+                  ),
                 );
               }).toList(),
             ),
@@ -1054,14 +2026,16 @@ class _RecurrencePopupState extends State<_RecurrencePopup> {
                 ),
               ),
               Expanded(
-                child: CupertinoButton.filled(
+                child: CupertinoButton(
                   onPressed: () {
                     widget.onRecurrenceChanged(_selectedType, _selectedEndDate);
                     Navigator.pop(context);
                   },
+                  color: AppTheme.primaryColor,
+                  borderRadius: BorderRadius.circular(12),
                   child: const Text(
                     'Save',
-                    style: TextStyle(color: CupertinoColors.white),
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),

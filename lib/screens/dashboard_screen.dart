@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/transaction_provider.dart';
+import '../providers/theme_provider.dart';
 import '../models/transaction.dart' as model;
+import '../theme/app_theme.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -12,7 +14,25 @@ class DashboardScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Weekli Dashboard'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        backgroundColor: AppTheme.primaryColor,
+        foregroundColor: Colors.white,
+        actions: [
+          Consumer<ThemeProvider>(
+            builder: (context, themeProvider, child) {
+              final isDarkMode = themeProvider.themeMode == ThemeMode.dark ||
+                  (themeProvider.themeMode == ThemeMode.system &&
+                      MediaQuery.of(context).platformBrightness == Brightness.dark);
+              return IconButton(
+                icon: Icon(
+                  isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                ),
+                onPressed: () {
+                  themeProvider.toggleTheme(!isDarkMode);
+                },
+              );
+            },
+          ),
+        ],
       ),
       body: Consumer<TransactionProvider>(
         builder: (context, provider, child) {
@@ -179,7 +199,7 @@ class DashboardScreen extends StatelessWidget {
         leading: CircleAvatar(
           backgroundColor: transaction.isIncome ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
           child: Icon(
-            transaction.isIncome ? Icons.add : Icons.remove,
+            transaction.isIncome ? Icons.trending_up : Icons.trending_down,
             color: transaction.isIncome ? Colors.green : Colors.red,
           ),
         ),

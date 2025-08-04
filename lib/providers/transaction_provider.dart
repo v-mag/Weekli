@@ -1,14 +1,17 @@
 import 'package:flutter/foundation.dart';
 import '../models/transaction.dart' as model;
+import '../models/category_budget.dart';
 import '../services/database_helper.dart';
 
 class TransactionProvider with ChangeNotifier {
   final DatabaseHelper _databaseHelper = DatabaseHelper();
   
   List<model.Transaction> _transactions = [];
+  List<CategoryBudget> _categoryBudgets = [];
   DateTime _selectedDate = DateTime.now();
   
   List<model.Transaction> get transactions => _transactions;
+  List<CategoryBudget> get categoryBudgets => _categoryBudgets;
   DateTime get selectedDate => _selectedDate;
   
   // Get transactions for selected date range
@@ -25,13 +28,14 @@ class TransactionProvider with ChangeNotifier {
   
   List<model.Transaction> get weekTransactions {
     final now = DateTime.now();
-    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-    final endOfWeek = startOfWeek.add(const Duration(days: 6, hours: 23, minutes: 59, seconds: 59));
     
-    return _transactions.where((transaction) =>
-        transaction.date.isAfter(startOfWeek.subtract(const Duration(seconds: 1))) &&
-        transaction.date.isBefore(endOfWeek.add(const Duration(seconds: 1)))
-    ).toList();
+    // In Dart, Monday is 1 and Sunday is 7.
+    final startOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
+    final endOfWeek = startOfWeek.add(const Duration(days: 7));
+    
+    return _transactions.where((transaction) {
+      return !transaction.date.isBefore(startOfWeek) && transaction.date.isBefore(endOfWeek);
+    }).toList();
   }
   
   List<model.Transaction> get monthTransactions {
@@ -90,29 +94,38 @@ class TransactionProvider with ChangeNotifier {
     
     // Handle recurrent transactions
     if (transaction.isRecurrent) {
-      await _generateRecurrentTransactions(newTransaction);
+      final recurrentTransactions = await _generateRecurrentTransactions(newTransaction);
+      _transactions.addAll(recurrentTransactions);
+    } else {
+      _transactions.add(newTransaction);
     }
     
-    await loadTransactions();
+    notifyListeners();
   }
   
   Future<void> updateTransaction(model.Transaction transaction) async {
     await _databaseHelper.updateTransaction(transaction);
-    await loadTransactions();
+    final index = _transactions.indexWhere((t) => t.id == transaction.id);
+    if (index != -1) {
+      _transactions[index] = transaction;
+      notifyListeners();
+    }
   }
   
   Future<void> deleteTransaction(int id) async {
     await _databaseHelper.deleteTransaction(id);
-    await loadTransactions();
+    _transactions.removeWhere((t) => t.id == id);
+    notifyListeners();
   }
   
-  Future<void> _generateRecurrentTransactions(model.Transaction parentTransaction) async {
-    if (!parentTransaction.isRecurrent || parentTransaction.id == null) return;
+  Future<List<model.Transaction>> _generateRecurrentTransactions(model.Transaction parentTransaction) async {
+    if (!parentTransaction.isRecurrent || parentTransaction.id == null) return [];
     
     DateTime currentDate = parentTransaction.date;
     final endDate = parentTransaction.recurrenceEndDate ?? 
         DateTime.now().add(const Duration(days: 365)); // Default to 1 year
     
+    final recurrentTransactions = <model.Transaction>[];
     while (currentDate.isBefore(endDate)) {
       DateTime nextDate;
       
@@ -130,7 +143,7 @@ class TransactionProvider with ChangeNotifier {
           nextDate = DateTime(currentDate.year + 1, currentDate.month, currentDate.day);
           break;
         default:
-          return;
+          return [];
       }
       
       if (nextDate.isAfter(endDate)) break;
@@ -141,9 +154,10 @@ class TransactionProvider with ChangeNotifier {
         parentTransactionId: parentTransaction.id,
       );
       
-      await _databaseHelper.insertTransaction(recurrentTransaction);
+      recurrentTransactions.add(recurrentTransaction);
       currentDate = nextDate;
     }
+    return recurrentTransactions;
   }
   
   List<model.Transaction> getTransactionsForDateRange(DateTime start, DateTime end) {
@@ -165,5 +179,49 @@ class TransactionProvider with ChangeNotifier {
     }
     
     return transactionsByDay;
+  }
+
+  // CategoryBudget management methods
+  Future<void> loadCategoryBudgets() async {
+    _categoryBudgets = await _databaseHelper.getAllCategoryBudgets();
+    notifyListeners();
+  }
+
+  Future<void> addCategoryBudget(CategoryBudget budget) async {
+    final id = await _databaseHelper.insertCategoryBudget(budget);
+    final budgetWithId = budget.copyWith(id: id);
+    _categoryBudgets.add(budgetWithId);
+    notifyListeners();
+  }
+
+  Future<void> updateCategoryBudget(CategoryBudget budget) async {
+    await _databaseHelper.updateCategoryBudget(budget);
+    final index = _categoryBudgets.indexWhere((b) => b.id == budget.id);
+    if (index != -1) {
+      _categoryBudgets[index] = budget;
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteCategoryBudget(int id) async {
+    await _databaseHelper.deleteCategoryBudget(id);
+    _categoryBudgets.removeWhere((budget) => budget.id == id);
+    notifyListeners();
+  }
+
+  List<CategoryBudget> getCategoryBudgetsByWeek(DateTime weekStart) {
+    return _categoryBudgets.where((budget) {
+      final budgetWeekStart = DateTime(
+        budget.weekStartDate.year,
+        budget.weekStartDate.month,
+        budget.weekStartDate.day,
+      );
+      final targetWeekStart = DateTime(
+        weekStart.year,
+        weekStart.month,
+        weekStart.day,
+      );
+      return budgetWeekStart.isAtSameMomentAs(targetWeekStart);
+    }).toList();
   }
 } 

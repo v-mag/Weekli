@@ -4,6 +4,7 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import '../providers/transaction_provider.dart';
 import '../models/transaction.dart' as model;
+import '../theme/app_theme.dart';
 
 enum CalendarView { month, week, trimester }
 
@@ -31,45 +32,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Calendar'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        backgroundColor: AppTheme.primaryColor,
+        foregroundColor: Colors.white,
         actions: [
-          SegmentedButton<CalendarView>(
-            segments: const [
-              ButtonSegment(
-                value: CalendarView.week,
-                label: Text('Week'),
-                icon: Icon(Icons.view_week, size: 16),
-              ),
-              ButtonSegment(
-                value: CalendarView.month,
-                label: Text('Month'),
-                icon: Icon(Icons.calendar_view_month, size: 16),
-              ),
-              ButtonSegment(
-                value: CalendarView.trimester,
-                label: Text('3M'),
-                icon: Icon(Icons.view_module, size: 16),
-              ),
-            ],
-            selected: {_selectedView},
-            onSelectionChanged: (Set<CalendarView> selection) {
-              setState(() {
-                _selectedView = selection.first;
-                switch (_selectedView) {
-                  case CalendarView.week:
-                    _calendarFormat = CalendarFormat.week;
-                    break;
-                  case CalendarView.month:
-                    _calendarFormat = CalendarFormat.month;
-                    break;
-                  case CalendarView.trimester:
-                    _calendarFormat = CalendarFormat.month;
-                    break;
-                }
-              });
-            },
-          ),
-          const SizedBox(width: 8),
         ],
       ),
       body: Consumer<TransactionProvider>(
@@ -90,10 +55,55 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       return transactionsByDay[DateTime(day.year, day.month, day.day)] ?? [];
                     },
                     startingDayOfWeek: StartingDayOfWeek.monday,
-                    calendarStyle: const CalendarStyle(
+                    calendarStyle: CalendarStyle(
                       outsideDaysVisible: false,
-                      weekendTextStyle: TextStyle(color: Colors.red),
-                      holidayTextStyle: TextStyle(color: Colors.red),
+                      weekendTextStyle: const TextStyle(color: Colors.red),
+                      holidayTextStyle: const TextStyle(color: Colors.red),
+                      defaultTextStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                      // Today's date styling
+                      todayDecoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withOpacity(0.3),
+                        shape: BoxShape.circle,
+                      ),
+                      todayTextStyle: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryColor,
+                      ),
+                      // Selected day styling
+                      selectedDecoration: BoxDecoration(
+                        color: AppTheme.primaryColor,
+                        shape: BoxShape.circle,
+                      ),
+                      selectedTextStyle: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    headerStyle: HeaderStyle(
+                      // Header text styling
+                      titleTextStyle: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                      // Format button styling (Month/Week toggle)
+                      formatButtonTextStyle: TextStyle(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      formatButtonDecoration: BoxDecoration(
+                        border: Border.all(color: AppTheme.primaryColor),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      // Navigation arrows
+                      leftChevronIcon: Icon(
+                        Icons.chevron_left,
+                        color: AppTheme.primaryColor,
+                      ),
+                      rightChevronIcon: Icon(
+                        Icons.chevron_right,
+                        color: AppTheme.primaryColor,
+                      ),
                     ),
                     onDaySelected: (selectedDay, focusedDay) {
                       if (!isSameDay(_selectedDay, selectedDay)) {
@@ -126,7 +136,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             child: Container(
                               padding: const EdgeInsets.all(4),
                               decoration: const BoxDecoration(
-                                color: Colors.blue,
+                                color: AppTheme.primaryColor,
                                 shape: BoxShape.circle,
                               ),
                               child: Text(
@@ -226,7 +236,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           child: Container(
             margin: const EdgeInsets.all(1),
             decoration: BoxDecoration(
-              color: isSameDay(_selectedDay, date) ? Colors.blue.withOpacity(0.3) : null,
+              color: isSameDay(_selectedDay, date) ? AppTheme.primaryColor.withOpacity(0.3) : null,
               border: Border.all(color: Colors.grey.withOpacity(0.3)),
               borderRadius: BorderRadius.circular(4),
             ),
@@ -249,7 +259,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       width: 6,
                       height: 6,
                       decoration: const BoxDecoration(
-                        color: Colors.blue,
+                        color: AppTheme.primaryColor,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -309,7 +319,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ? Colors.green.withOpacity(0.1) 
               : Colors.red.withOpacity(0.1),
           child: Icon(
-            transaction.isIncome ? Icons.add : Icons.remove,
+            transaction.isIncome ? Icons.trending_up : Icons.trending_down,
             color: transaction.isIncome ? Colors.green : Colors.red,
           ),
         ),

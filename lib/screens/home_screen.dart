@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/transaction_provider.dart';
+import '../theme/app_theme.dart';
 import 'dashboard_screen.dart';
 import 'calendar_screen.dart';
 import 'transactions_screen.dart';
+import 'budget_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,14 +21,17 @@ class _HomeScreenState extends State<HomeScreen> {
     const DashboardScreen(),
     const CalendarScreen(),
     const TransactionsScreen(),
+    const BudgetScreen(),
   ];
 
   @override
   void initState() {
     super.initState();
-    // Load transactions when the app starts
+    // Load transactions and budgets when the app starts
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<TransactionProvider>().loadTransactions();
+      final provider = context.read<TransactionProvider>();
+      provider.loadTransactions();
+      provider.loadCategoryBudgets();
     });
   }
 
@@ -38,6 +43,8 @@ class _HomeScreenState extends State<HomeScreen> {
         onPressed: () {
           Navigator.pushNamed(context, '/add-transaction');
         },
+        backgroundColor: AppTheme.primaryColor,
+        foregroundColor: Colors.white,
         child: const Icon(Icons.add),
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -48,6 +55,8 @@ class _HomeScreenState extends State<HomeScreen> {
           });
         },
         type: BottomNavigationBarType.fixed,
+        selectedItemColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : AppTheme.primaryColor,
+        unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard),
@@ -60,6 +69,10 @@ class _HomeScreenState extends State<HomeScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.list),
             label: 'Transactions',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.schedule),
+            label: 'Budget',
           ),
         ],
       ),

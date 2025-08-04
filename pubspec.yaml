@@ -53,6 +53,9 @@ dependencies:
   
   # Image picker for receipt scanning
   image_picker: ^1.0.4
+  flutter_localizations:
+    sdk: flutter
+  shared_preferences: ^2.5.3
 
 dev_dependencies:
   flutter_test:

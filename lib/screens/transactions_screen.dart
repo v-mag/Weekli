@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import '../providers/transaction_provider.dart';
 import '../models/transaction.dart' as model;
+import '../theme/app_theme.dart';
+import 'edit_transaction_screen.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -20,18 +22,34 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Transactions'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        backgroundColor: AppTheme.primaryColor,
+        foregroundColor: Colors.white,
         actions: [
           PopupMenuButton<String>(
+            color: Theme.of(context).brightness == Brightness.light
+                ? Colors.white
+                : null,
             onSelected: (value) {
               setState(() {
                 _filterType = value;
               });
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(value: 'All', child: Text('All')),
-              const PopupMenuItem(value: 'Income', child: Text('Income')),
-              const PopupMenuItem(value: 'Expense', child: Text('Expense')),
+              PopupMenuItem(
+                  value: 'All',
+                  child: Text('All',
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface))),
+              PopupMenuItem(
+                  value: 'Income',
+                  child: Text('Income',
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface))),
+              PopupMenuItem(
+                  value: 'Expense',
+                  child: Text('Expense',
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface))),
             ],
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -49,7 +67,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       body: Consumer<TransactionProvider>(
         builder: (context, provider, child) {
           List<model.Transaction> filteredTransactions = provider.transactions;
-          
+
           if (_filterType == 'Income') {
             filteredTransactions = provider.transactions
                 .where((t) => t.type == model.TransactionType.income)
@@ -112,14 +130,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               final dateKey = sortedDates[index];
               final transactions = groupedTransactions[dateKey]!;
               final date = DateTime.parse(dateKey);
-              
+
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildDateHeader(date, transactions),
                   ...transactions.map((transaction) =>
-                    _buildTransactionTile(context, transaction, provider)
-                  ),
+                      _buildTransactionTile(context, transaction, provider)),
                   const SizedBox(height: 8),
                 ],
               );
@@ -133,15 +150,15 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   Widget _buildDateHeader(DateTime date, List<model.Transaction> transactions) {
     final dateFormat = DateFormat('EEEE, MMM dd, yyyy');
     final currencyFormat = NumberFormat.currency(symbol: '\$');
-    
+
     final totalIncome = transactions
         .where((t) => t.type == model.TransactionType.income)
         .fold(0.0, (sum, t) => sum + t.amount);
-    
+
     final totalExpense = transactions
         .where((t) => t.type == model.TransactionType.expense)
         .fold(0.0, (sum, t) => sum + t.amount);
-    
+
     final balance = totalIncome - totalExpense;
 
     return Container(
@@ -206,95 +223,112 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     final currencyFormat = NumberFormat.currency(symbol: '\$');
     final timeFormat = DateFormat('HH:mm');
 
-    return Slidable(
-      key: ValueKey(transaction.id),
-      endActionPane: ActionPane(
-        motion: const ScrollMotion(),
-        children: [
-          SlidableAction(
-            onPressed: (context) => _showDeleteConfirmation(context, transaction, provider),
-            backgroundColor: Colors.red,
-            foregroundColor: Colors.white,
-            icon: Icons.delete,
-            label: 'Delete',
-          ),
-        ],
-      ),
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 4),
-        child: ListTile(
-          leading: CircleAvatar(
-            backgroundColor: transaction.isIncome 
-                ? Colors.green.withOpacity(0.1) 
-                : Colors.red.withOpacity(0.1),
-            child: Icon(
-              transaction.isIncome ? Icons.add : Icons.remove,
-              color: transaction.isIncome ? Colors.green : Colors.red,
-            ),
-          ),
-          title: Row(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4.0),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12.0),
+        child: Slidable(
+          key: ValueKey(transaction.id),
+          endActionPane: ActionPane(
+            motion: const ScrollMotion(),
             children: [
-              Expanded(
-                child: Text(
-                  transaction.title,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
+              Theme(
+                data: Theme.of(context).copyWith(
+                    outlinedButtonTheme: const OutlinedButtonThemeData(
+                        style: ButtonStyle(
+                            iconColor: WidgetStatePropertyAll(Colors.white)))),
+                child: SlidableAction(
+                    onPressed: (context) =>
+                        _navigateToEditTransaction(context, transaction),
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    icon: Icons.edit),
               ),
-              if (transaction.isRecurrent)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    _getRecurrenceText(transaction.recurrenceType),
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: Colors.blue,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
+              Theme(
+                  data: Theme.of(context).copyWith(
+                      outlinedButtonTheme: const OutlinedButtonThemeData(
+                          style: ButtonStyle(
+                              iconColor:
+                                  WidgetStatePropertyAll(Colors.white)))),
+                  child: SlidableAction(
+                      onPressed: (context) => _showDeleteConfirmation(
+                          context, transaction, provider),
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      icon: Icons.delete)),
             ],
           ),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (transaction.description?.isNotEmpty == true)
-                Text(transaction.description!),
-              Row(
+          child: Card(
+            margin: EdgeInsets.zero,
+            shape:
+                const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: transaction.isIncome
+                    ? Colors.green.withOpacity(0.1)
+                    : Colors.red.withOpacity(0.1),
+                child: Icon(
+                  transaction.isIncome
+                      ? Icons.trending_up
+                      : Icons.trending_down,
+                  color: transaction.isIncome ? Colors.green : Colors.red,
+                ),
+              ),
+              title: Row(
                 children: [
-                  Text(
-                    timeFormat.format(transaction.date),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
+                  Expanded(
+                    child: Text(
+                      transaction.title,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
-                  if (transaction.category != null) ...[
-                    Text(
-                      ' • ',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                    Text(
-                      transaction.category!,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
+                  if (transaction.isRecurrent)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _getRecurrenceText(transaction.recurrenceType),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.blue,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ],
                 ],
               ),
-            ],
-          ),
-          trailing: Text(
-            currencyFormat.format(transaction.amount),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: transaction.isIncome ? Colors.green : Colors.red,
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (transaction.description?.isNotEmpty == true)
+                    Text(transaction.description!),
+                  Row(
+                    children: [
+                      if (transaction.category != null) ...[
+                        Text(
+                          transaction.category!,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+              trailing: Text(
+                currencyFormat.format(transaction.amount),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: transaction.isIncome ? Colors.green : Colors.red,
+                ),
+              ),
             ),
           ),
         ),
@@ -327,7 +361,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Delete Transaction'),
-          content: Text('Are you sure you want to delete "${transaction.title}"?'),
+          content:
+              Text('Are you sure you want to delete "${transaction.title}"?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -348,4 +383,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       },
     );
   }
-} 
+
+  void _navigateToEditTransaction(
+      BuildContext context, model.Transaction transaction) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => EditTransactionScreen(transaction: transaction),
+      ),
+    );
+  }
+}

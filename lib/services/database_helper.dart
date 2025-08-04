@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/transaction.dart' as model;
+import '../models/category_budget.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -19,8 +20,9 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'weekli.db');
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
@@ -40,6 +42,35 @@ class DatabaseHelper {
         FOREIGN KEY (parentTransactionId) REFERENCES transactions (id)
       )
     ''');
+    
+    await db.execute('''
+      CREATE TABLE category_budgets(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        category TEXT NOT NULL,
+        expected_amount REAL NOT NULL,
+        type INTEGER NOT NULL,
+        week_start_date TEXT NOT NULL,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL
+      )
+    ''');
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion == 1 && newVersion == 2) {
+      // Add the category_budgets table for existing databases
+      await db.execute('''
+        CREATE TABLE category_budgets(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          category TEXT NOT NULL,
+          expected_amount REAL NOT NULL,
+          type INTEGER NOT NULL,
+          week_start_date TEXT NOT NULL,
+          is_active INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL
+        )
+      ''');
+    }
   }
 
   Future<int> insertTransaction(model.Transaction transaction) async {
@@ -136,5 +167,59 @@ class DatabaseHelper {
       'expense': expenseResult,
       'balance': incomeResult - expenseResult,
     };
+  }
+
+  // CategoryBudget CRUD operations
+  Future<int> insertCategoryBudget(CategoryBudget budget) async {
+    final db = await database;
+    return await db.insert('category_budgets', budget.toMap());
+  }
+
+  Future<List<CategoryBudget>> getAllCategoryBudgets() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'category_budgets',
+      where: 'is_active = ?',
+      whereArgs: [1],
+      orderBy: 'week_start_date DESC',
+    );
+
+    return List.generate(maps.length, (i) {
+      return CategoryBudget.fromMap(maps[i]);
+    });
+  }
+
+  Future<List<CategoryBudget>> getCategoryBudgetsByWeek(DateTime weekStart) async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'category_budgets',
+      where: 'week_start_date = ? AND is_active = ?',
+      whereArgs: [weekStart.toIso8601String(), 1],
+      orderBy: 'category ASC',
+    );
+
+    return List.generate(maps.length, (i) {
+      return CategoryBudget.fromMap(maps[i]);
+    });
+  }
+
+  Future<int> updateCategoryBudget(CategoryBudget budget) async {
+    final db = await database;
+    return await db.update(
+      'category_budgets',
+      budget.toMap(),
+      where: 'id = ?',
+      whereArgs: [budget.id],
+    );
+  }
+
+  Future<int> deleteCategoryBudget(int id) async {
+    final db = await database;
+    return await db.update(
+      'category_budgets',
+      {'is_active': 0},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 } 
