@@ -99,6 +99,10 @@ class AppTheme {
       titleLarge: TextStyle(color: primaryTextColor, fontWeight: FontWeight.bold),
       headlineSmall: TextStyle(color: primaryTextColor, fontWeight: FontWeight.bold),
     ),
+    snackBarTheme: const SnackBarThemeData(
+      backgroundColor: darkSurfaceColor,
+      contentTextStyle: TextStyle(color: darkPrimaryTextColor),
+    ),
   );
 
   // Dark Theme
@@ -127,6 +131,10 @@ class AppTheme {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
+    ),
+    snackBarTheme: const SnackBarThemeData(
+      backgroundColor: darkSurfaceColor,
+      contentTextStyle: TextStyle(color: darkPrimaryTextColor),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,

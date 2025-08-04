@@ -60,7 +60,11 @@ class ConfirmationStep extends StatelessWidget {
             decoration: BoxDecoration(
               color: theme.cardColor,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: theme.dividerColor),
+              border: Border.all(
+                color: theme.brightness == Brightness.dark 
+                    ? Colors.grey.shade700 
+                    : theme.dividerColor,
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

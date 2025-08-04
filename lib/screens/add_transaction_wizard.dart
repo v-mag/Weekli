@@ -1050,7 +1050,7 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
                 fontWeight: FontWeight.bold,
                 color: _showSuccessCheck 
                     ? AppTheme.incomeColor 
-                    : AppTheme.primaryTextColor,
+                    : Theme.of(context).colorScheme.onSurface,
               ),
               textAlign: TextAlign.center,
             ),
@@ -1064,9 +1064,9 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
                 : (_transactionMode == TransactionMode.budget 
                     ? 'Please wait while we create your budget entry'
                     : 'Please wait while we process your transaction'),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
-              color: AppTheme.secondaryTextColor,
+              color: Theme.of(context).textTheme.bodyMedium?.color,
             ),
             textAlign: TextAlign.center,
           ),
