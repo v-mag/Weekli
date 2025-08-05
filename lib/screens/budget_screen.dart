@@ -7,6 +7,7 @@ import '../models/category_budget.dart';
 import '../models/transaction.dart' as model;
 import '../providers/transaction_provider.dart';
 import '../theme/app_theme.dart';
+import '../screens/add_transaction_wizard.dart';
 
 class BudgetScreen extends StatefulWidget {
   const BudgetScreen({super.key});
@@ -199,6 +200,26 @@ class _BudgetScreenState extends State<BudgetScreen> {
         borderRadius: BorderRadius.circular(12.0),
         child: Slidable(
           key: ValueKey(budget.id),
+          startActionPane: ActionPane(
+            motion: const ScrollMotion(),
+            children: [
+              Theme(
+                data: Theme.of(context).copyWith(
+                  outlinedButtonTheme: const OutlinedButtonThemeData(
+                    style: ButtonStyle(
+                      iconColor: WidgetStatePropertyAll(Colors.white)
+                    )
+                  )
+                ),
+                child: SlidableAction(
+                  onPressed: (context) => _navigateToAddTransaction(context, budget),
+                  backgroundColor: AppTheme.primaryGreen,
+                  foregroundColor: Colors.white,
+                  icon: Icons.add_circle_outline,
+                ),
+              ),
+            ],
+          ),
           endActionPane: ActionPane(
             motion: const ScrollMotion(),
             children: [
@@ -430,6 +451,17 @@ class _BudgetScreenState extends State<BudgetScreen> {
           ],
         );
       },
+    );
+  }
+
+  void _navigateToAddTransaction(BuildContext context, CategoryBudget budget) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => AddTransactionWizard(
+          initialCategory: budget.category,
+          initialTransactionType: budget.type,
+        ),
+      ),
     );
   }
 

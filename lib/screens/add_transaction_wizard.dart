@@ -19,7 +19,14 @@ import 'wizard_steps/budget_entry_step.dart';
 enum ButtonState { normal, loading, confirmed }
 
 class AddTransactionWizard extends StatefulWidget {
-  const AddTransactionWizard({super.key});
+  final String? initialCategory;
+  final model.TransactionType? initialTransactionType;
+
+  const AddTransactionWizard({
+    super.key,
+    this.initialCategory,
+    this.initialTransactionType,
+  });
 
   @override
   State<AddTransactionWizard> createState() => _AddTransactionWizardState();
@@ -52,6 +59,22 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
   DateTime? _recurrenceEndDate;
   ButtonState _buttonState = ButtonState.normal;
   
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialCategory != null && widget.initialTransactionType != null) {
+      _transactionMode = TransactionMode.actual;
+      _transactionType = widget.initialTransactionType!;
+      _categoryController.text = widget.initialCategory!;
+      _currentStep = 1;
+      
+      // Use a post-frame callback to safely transition after the first frame
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _pageController.jumpToPage(1);
+      });
+    }
+  }
+
   // Loading screen state
   bool _showSuccessCheck = false;
 
