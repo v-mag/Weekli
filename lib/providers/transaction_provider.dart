@@ -50,6 +50,20 @@ class TransactionProvider with ChangeNotifier {
   }
   
   // Calculate totals
+  double get todayIncome {
+    return todayTransactions
+        .where((t) => t.type == model.TransactionType.income)
+        .fold(0.0, (sum, t) => sum + t.amount);
+  }
+
+  double get todayExpense {
+    return todayTransactions
+        .where((t) => t.type == model.TransactionType.expense)
+        .fold(0.0, (sum, t) => sum + t.amount);
+  }
+
+  double get todayBalance => todayIncome - todayExpense;
+
   double get weeklyIncome {
     return weekTransactions
         .where((t) => t.type == model.TransactionType.income)
@@ -78,6 +92,12 @@ class TransactionProvider with ChangeNotifier {
   
   double get monthlyBalance => monthlyIncome - monthlyExpense;
   
+  double get totalBalance {
+    return _transactions.fold(0.0, (sum, t) {
+      return sum + (t.type == model.TransactionType.income ? t.amount : -t.amount);
+    });
+  }
+
   void setSelectedDate(DateTime date) {
     _selectedDate = date;
     notifyListeners();

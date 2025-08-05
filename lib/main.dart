@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'providers/transaction_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/settings_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/calendar_screen.dart';
@@ -16,6 +17,7 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (context) => TransactionProvider()),
         ChangeNotifierProvider(create: (context) => ThemeProvider()),
+        ChangeNotifierProvider(create: (context) => SettingsProvider()),
       ],
       child: const WeekliApp(),
     ),

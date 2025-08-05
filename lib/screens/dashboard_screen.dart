@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/theme_provider.dart';
+import '../providers/settings_provider.dart';
 import '../models/transaction.dart' as model;
 import '../theme/app_theme.dart';
+import 'settings_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -17,89 +19,136 @@ class DashboardScreen extends StatelessWidget {
         backgroundColor: AppTheme.primaryColor,
         foregroundColor: Colors.white,
         actions: [
-          Consumer<ThemeProvider>(
-            builder: (context, themeProvider, child) {
-              final isDarkMode = themeProvider.themeMode == ThemeMode.dark ||
-                  (themeProvider.themeMode == ThemeMode.system &&
-                      MediaQuery.of(context).platformBrightness == Brightness.dark);
-              return IconButton(
-                icon: Icon(
-                  isDarkMode ? Icons.light_mode : Icons.dark_mode,
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
                 ),
-                onPressed: () {
-                  themeProvider.toggleTheme(!isDarkMode);
+              );
+            },
+          ),
+        ],
+      ),
+      body: MultiProvider(
+        providers: [
+          Consumer<TransactionProvider>(
+            builder: (context, transactionProvider, child) {
+              return Consumer<SettingsProvider>(
+                builder: (context, settingsProvider, child) {
+                  final currentBalance = settingsProvider.initialBalance + transactionProvider.totalBalance;
+                  
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Current Balance Card
+                        _buildCurrentBalanceCard(context, currentBalance),
+                        const SizedBox(height: 16),
+                        
+                        // Today Overview Card
+                        _buildOverviewCard(
+                          context,
+                          'Today',
+                          transactionProvider.todayIncome,
+                          transactionProvider.todayExpense,
+                          transactionProvider.todayBalance,
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Weekly Overview Card
+                        _buildOverviewCard(
+                          context,
+                          'This Week',
+                          transactionProvider.weeklyIncome,
+                          transactionProvider.weeklyExpense,
+                          transactionProvider.weeklyBalance,
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Monthly Overview Card
+                        _buildOverviewCard(
+                          context,
+                          'This Month',
+                          transactionProvider.monthlyIncome,
+                          transactionProvider.monthlyExpense,
+                          transactionProvider.monthlyBalance,
+                        ),
+                        const SizedBox(height: 24),
+                        
+                        // Recent Transactions
+                        Text(
+                          'Recent Transactions',
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        
+                        if (transactionProvider.transactions.isEmpty)
+                          const Card(
+                            child: Padding(
+                              padding: EdgeInsets.all(24.0),
+                              child: Center(
+                                child: Column(
+                                  children: [
+                                    Icon(Icons.receipt_long, size: 48, color: Colors.grey),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      'No transactions yet',
+                                      style: TextStyle(color: Colors.grey, fontSize: 16),
+                                    ),
+                                    Text(
+                                      'Tap the + button to add your first transaction',
+                                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          )
+                        else
+                          ...transactionProvider.transactions.take(5).map((transaction) =>
+                            _buildTransactionTile(context, transaction)
+                          ),
+                      ],
+                    ),
+                  );
                 },
               );
             },
           ),
         ],
       ),
-      body: Consumer<TransactionProvider>(
-        builder: (context, provider, child) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Weekly Overview Card
-                _buildOverviewCard(
-                  context,
-                  'This Week',
-                  provider.weeklyIncome,
-                  provider.weeklyExpense,
-                  provider.weeklyBalance,
-                ),
-                const SizedBox(height: 16),
-                
-                // Monthly Overview Card
-                _buildOverviewCard(
-                  context,
-                  'This Month',
-                  provider.monthlyIncome,
-                  provider.monthlyExpense,
-                  provider.monthlyBalance,
-                ),
-                const SizedBox(height: 24),
-                
-                // Recent Transactions
-                Text(
-                  'Recent Transactions',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                
-                if (provider.transactions.isEmpty)
-                  const Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(24.0),
-                      child: Center(
-                        child: Column(
-                          children: [
-                            Icon(Icons.receipt_long, size: 48, color: Colors.grey),
-                            SizedBox(height: 8),
-                            Text(
-                              'No transactions yet',
-                              style: TextStyle(color: Colors.grey, fontSize: 16),
-                            ),
-                            Text(
-                              'Tap the + button to add your first transaction',
-                              style: TextStyle(color: Colors.grey, fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  ...provider.transactions.take(5).map((transaction) =>
-                    _buildTransactionTile(context, transaction)
-                  ),
-              ],
+    );
+  }
+
+  Widget _buildCurrentBalanceCard(BuildContext context, double currentBalance) {
+    final currencyFormat = NumberFormat.currency(symbol: '\$');
+    return Card(
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Current Balance',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          );
-        },
+            Text(
+              currencyFormat.format(currentBalance),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: currentBalance >= 0 ? Colors.green : Colors.red,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
