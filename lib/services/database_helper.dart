@@ -158,7 +158,6 @@ class DatabaseHelper {
   }
 
   Future<Map<String, double>> getMonthlyTotals(DateTime start, DateTime end) async {
-    final db = await database;
     final incomeResult = await getTotalIncome(start, end);
     final expenseResult = await getTotalExpense(start, end);
     

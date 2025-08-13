@@ -63,7 +63,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       defaultTextStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                       // Today's date styling
                       todayDecoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withOpacity(0.3),
+                        color: AppTheme.primaryColor.withValues(alpha: 0.3),
                         shape: BoxShape.circle,
                       ),
                       todayTextStyle: TextStyle(
@@ -237,8 +237,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
           child: Container(
             margin: const EdgeInsets.all(1),
             decoration: BoxDecoration(
-              color: isSameDay(_selectedDay, date) ? AppTheme.primaryColor.withOpacity(0.3) : null,
-              border: Border.all(color: Colors.grey.withOpacity(0.3)),
+              color: isSameDay(_selectedDay, date) ? AppTheme.primaryColor.withValues(alpha: 0.3) : null,
+              border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Stack(
@@ -317,8 +317,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: transaction.isIncome 
-              ? Colors.green.withOpacity(0.1) 
-              : Colors.red.withOpacity(0.1),
+              ? Colors.green.withValues(alpha: 0.1) 
+              : Colors.red.withValues(alpha: 0.1),
           child: Icon(
             transaction.isIncome ? Icons.trending_up : Icons.trending_down,
             color: transaction.isIncome ? Colors.green : Colors.red,

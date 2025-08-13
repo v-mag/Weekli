@@ -165,7 +165,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+        color: Theme.of(context).colorScheme.surfaceVariant.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -221,7 +221,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     TransactionProvider provider,
   ) {
     final currencyFormat = NumberFormat.currency(symbol: '\$');
-    final timeFormat = DateFormat('HH:mm');
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 4.0),
@@ -265,8 +264,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             child: ListTile(
               leading: CircleAvatar(
                 backgroundColor: transaction.isIncome
-                    ? Colors.green.withOpacity(0.1)
-                    : Colors.red.withOpacity(0.1),
+                    ? Colors.green.withValues(alpha: 0.1)
+                    : Colors.red.withValues(alpha: 0.1),
                 child: Icon(
                   transaction.isIncome
                       ? Icons.trending_up
@@ -287,7 +286,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.1),
+                        color: Colors.blue.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(

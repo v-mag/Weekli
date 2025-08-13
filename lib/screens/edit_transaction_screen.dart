@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import '../providers/transaction_provider.dart';
 import '../models/transaction.dart' as model;
 import '../theme/app_theme.dart';
@@ -311,8 +309,8 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: _transactionType == model.TransactionType.income
-                    ? AppTheme.incomeColor.withOpacity(0.1)
-                    : AppTheme.expenseColor.withOpacity(0.1),
+                    ? AppTheme.incomeColor.withValues(alpha: 0.1)
+                    : AppTheme.expenseColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: _transactionType == model.TransactionType.income
@@ -367,7 +365,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
                 ),
               ),
               style: TextStyle(color: theme.colorScheme.onSurface),
-              placeholderStyle: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.5)),
+              placeholderStyle: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
             ),
             
             const SizedBox(height: 16),

@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../providers/transaction_provider.dart';
-import '../providers/theme_provider.dart';
 import '../providers/settings_provider.dart';
 import '../models/transaction.dart' as model;
 import '../theme/app_theme.dart';
@@ -365,7 +364,7 @@ class DashboardScreen extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: transaction.isIncome ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+          backgroundColor: transaction.isIncome ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
           child: Icon(
             transaction.isIncome ? Icons.trending_up : Icons.trending_down,
             color: transaction.isIncome ? Colors.green : Colors.red,

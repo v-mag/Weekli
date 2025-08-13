@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import '../../theme/app_theme.dart';
 
 enum TransactionMode { actual, budget }
@@ -73,7 +72,7 @@ class TypeSelectionStep extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.1) : cardColor,
+          color: isSelected ? color.withValues(alpha: 0.1) : cardColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isSelected
@@ -86,7 +85,7 @@ class TypeSelectionStep extends StatelessWidget {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: color.withOpacity(0.2),
+                    color: color.withValues(alpha: 0.2),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),

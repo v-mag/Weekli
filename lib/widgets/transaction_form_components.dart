@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import '../theme/app_theme.dart';
 import '../models/transaction.dart' as model;
 
 class TransactionAmountInput extends StatefulWidget {
@@ -24,34 +23,6 @@ class TransactionAmountInput extends StatefulWidget {
 class _TransactionAmountInputState extends State<TransactionAmountInput> {
   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
 
-  void _addAmountField() {
-    if (widget.amountControllers.length >= 5) return;
-    
-    setState(() {
-      widget.amountControllers.add(TextEditingController());
-    });
-    
-    _listKey.currentState?.insertItem(widget.amountControllers.length - 1);
-    widget.onAmountChanged?.call();
-  }
-
-  void _removeAmountField(int index) {
-    if (widget.amountControllers.length <= 1) return;
-
-    final removedController = widget.amountControllers.removeAt(index);
-    
-    _listKey.currentState?.removeItem(
-      index,
-      (context, animation) => SlideTransition(
-        position: animation.drive(Tween(begin: const Offset(1, 0), end: Offset.zero)),
-        child: const SizedBox.shrink(),
-      ),
-    );
-    
-    removedController.dispose();
-    widget.onAmountChanged?.call();
-  }
-
   double getTotalAmount() {
     return widget.amountControllers.fold(0.0, (sum, controller) {
       return sum + (double.tryParse(controller.text) ?? 0.0);
@@ -66,55 +37,53 @@ class _TransactionAmountInputState extends State<TransactionAmountInput> {
 
     return SlideTransition(
       position: animation.drive(Tween(begin: const Offset(1, 0), end: Offset.zero)),
-      child: Container(
-        child: Row(
-          children: [            
-            // Amount input
-            Expanded(
-              flex: 2,
-              child: CupertinoTextField(
-                controller: widget.amountControllers[index],
-                decoration: BoxDecoration(
-                  color: theme.inputDecorationTheme.fillColor,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: theme.inputDecorationTheme.enabledBorder?.borderSide.color ?? theme.dividerColor,
-                    width: 1.0,
-                  ),
+      child: Row(
+        children: [            
+          // Amount input
+          Expanded(
+            flex: 2,
+            child: CupertinoTextField(
+              controller: widget.amountControllers[index],
+              decoration: BoxDecoration(
+                color: theme.inputDecorationTheme.fillColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: theme.inputDecorationTheme.enabledBorder?.borderSide.color ?? theme.dividerColor,
+                  width: 1.0,
                 ),
-                placeholder: 'Amount',
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-                ],
-                padding: const EdgeInsets.all(16),
-                style: TextStyle(color: theme.colorScheme.onSurface),
-                placeholderStyle: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.4)),
-                onChanged: (_) => widget.onAmountChanged?.call(),
               ),
+              placeholder: 'Amount',
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+              ],
+              padding: const EdgeInsets.all(16),
+              style: TextStyle(color: theme.colorScheme.onSurface),
+              placeholderStyle: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.4)),
+              onChanged: (_) => widget.onAmountChanged?.call(),
             ),
-            
-            // const SizedBox(width: 12),
-            
-            // Add button (only show on first field if multiple allowed)
-            // if (widget.allowMultiple && index == 0 && widget.amountControllers.length < 5)
-            //   IconButton(
-            //     onPressed: _addAmountField,
-            //     icon: const Icon(Icons.add_circle_outline, size: 20),
-            //     color: AppTheme.primaryColor,
-            //     constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            //   ),
-
-            //   // Remove button (only show for additional fields)
-            // if (index > 0)
-            //   IconButton(
-            //     onPressed: () => _removeAmountField(index),
-            //     icon: const Icon(Icons.remove_circle_outline, size: 20),
-            //     color: AppTheme.primaryColor,
-            //     constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            //   ),
-          ],
-        ),
+          ),
+          
+          // const SizedBox(width: 12),
+          
+          // Add button (only show on first field if multiple allowed)
+          // if (widget.allowMultiple && index == 0 && widget.amountControllers.length < 5)
+          //   IconButton(
+          //     onPressed: _addAmountField,
+          //     icon: const Icon(Icons.add_circle_outline, size: 20),
+          //     color: AppTheme.primaryColor,
+          //     constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          //   ),
+      
+          //   // Remove button (only show for additional fields)
+          // if (index > 0)
+          //   IconButton(
+          //     onPressed: () => _removeAmountField(index),
+          //     icon: const Icon(Icons.remove_circle_outline, size: 20),
+          //     color: AppTheme.primaryColor,
+          //     constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          //   ),
+        ],
       ),
     );
   }
@@ -257,7 +226,7 @@ class _TransactionCategoryInputState extends State<TransactionCategoryInput> {
               ),
               placeholder: widget.placeholder ?? 'Category',
               style: TextStyle(color: theme.colorScheme.onSurface),
-              placeholderStyle: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.4)),
+              placeholderStyle: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.4)),
               onSubmitted: (String value) => onFieldSubmitted(),
             );
           },
@@ -292,7 +261,7 @@ class _TransactionCategoryInputState extends State<TransactionCategoryInput> {
                                   padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
                                     border: Border(
-                                      bottom: BorderSide(color: theme.dividerColor.withOpacity(0.5)),
+                                      bottom: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5)),
                                     ),
                                   ),
                                   child: Row(

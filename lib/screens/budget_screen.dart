@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
@@ -111,7 +110,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                             Icon(
                               Icons.pie_chart_outline,
                               size: 64,
-                              color: AppTheme.secondaryTextColor.withOpacity(0.5),
+                              color: AppTheme.secondaryTextColor.withValues(alpha: 0.5),
                             ),
                             const SizedBox(height: 16),
                             const Text(
@@ -262,7 +261,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                           color: (budget.type == model.TransactionType.income
                                   ? AppTheme.incomeColor
                                   : AppTheme.expenseColor)
-                              .withOpacity(0.1),
+                                .withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(

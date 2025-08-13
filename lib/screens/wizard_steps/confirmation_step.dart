@@ -76,7 +76,7 @@ class ConfirmationStep extends StatelessWidget {
                     color: (transactionType == model.TransactionType.income
                             ? AppTheme.incomeColor
                             : AppTheme.expenseColor)
-                        .withOpacity(0.1),
+                        .withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: transactionType == model.TransactionType.income

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:intl/intl.dart';
 import '../../models/transaction.dart' as model;
 import '../../widgets/transaction_form_components.dart';
 import '../../theme/app_theme.dart';
@@ -58,7 +57,7 @@ class ManualEntryStep extends StatelessWidget {
                 ),
               ),
               style: TextStyle(color: theme.colorScheme.onSurface),
-              placeholderStyle: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.4)),
+              placeholderStyle: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.4)),
             ),
             const SizedBox(height: 16),
           ],

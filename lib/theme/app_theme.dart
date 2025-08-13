@@ -43,7 +43,6 @@ class AppTheme {
       seedColor: primaryColor,
       brightness: Brightness.light,
       surface: backgroundColor,
-      background: backgroundColor,
     ),
     scaffoldBackgroundColor: backgroundColor,
     appBarTheme: const AppBarTheme(
@@ -58,7 +57,7 @@ class AppTheme {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      shadowColor: Colors.black.withOpacity(0.1),
+      shadowColor: Colors.black.withValues(alpha:  0.1),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
@@ -112,11 +111,9 @@ class AppTheme {
       primary: primaryColor,
       secondary: primaryBlue,
       surface: darkSurfaceColor,
-      background: darkBackgroundColor,
       onPrimary: Colors.white,
       onSecondary: Colors.white,
       onSurface: darkPrimaryTextColor,
-      onBackground: darkPrimaryTextColor,
     ).copyWith(surface: darkSurfaceColor),
     scaffoldBackgroundColor: darkBackgroundColor,
     appBarTheme: const AppBarTheme(
