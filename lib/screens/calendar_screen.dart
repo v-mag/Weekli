@@ -40,6 +40,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       body: Consumer<TransactionProvider>(
         builder: (context, provider, child) {
           final transactionsByDay = provider.getTransactionsByDay();
+          final isDarkMode = Theme.of(context).brightness == Brightness.dark;
           
           return Column(
             children: [
@@ -88,21 +89,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                       // Format button styling (Month/Week toggle)
                       formatButtonTextStyle: TextStyle(
-                        color: AppTheme.primaryColor,
+                        color: isDarkMode ? Colors.white : AppTheme.primaryColor,
                         fontWeight: FontWeight.w600,
                       ),
                       formatButtonDecoration: BoxDecoration(
-                        border: Border.all(color: AppTheme.primaryColor),
+                        border: Border.all(color: isDarkMode ? Colors.white : AppTheme.primaryColor),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       // Navigation arrows
                       leftChevronIcon: Icon(
                         Icons.chevron_left,
-                        color: AppTheme.primaryColor,
+                        color: isDarkMode ? Colors.white : AppTheme.primaryColor,
                       ),
                       rightChevronIcon: Icon(
                         Icons.chevron_right,
-                        color: AppTheme.primaryColor,
+                        color: isDarkMode ? Colors.white : AppTheme.primaryColor,
                       ),
                     ),
                     onDaySelected: (selectedDay, focusedDay) {

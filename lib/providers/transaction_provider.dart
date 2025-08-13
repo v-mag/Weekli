@@ -1,7 +1,26 @@
 import 'package:flutter/foundation.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'dart:math';
+
 import '../models/transaction.dart' as model;
 import '../models/category_budget.dart';
 import '../services/database_helper.dart';
+
+class ChartData {
+  final List<FlSpot> realIncome;
+  final List<FlSpot> realExpenses;
+  final List<FlSpot> budgetIncome;
+  final List<FlSpot> budgetExpenses;
+  final double maxY;
+
+  ChartData({
+    required this.realIncome,
+    required this.realExpenses,
+    required this.budgetIncome,
+    required this.budgetExpenses,
+    required this.maxY,
+  });
+}
 
 class TransactionProvider with ChangeNotifier {
   final DatabaseHelper _databaseHelper = DatabaseHelper();
@@ -243,5 +262,75 @@ class TransactionProvider with ChangeNotifier {
       );
       return budgetWeekStart.isAtSameMomentAs(targetWeekStart);
     }).toList();
+  }
+
+  ChartData getChartData(String period) {
+    List<model.Transaction> transactions;
+    DateTime startDate;
+    int days;
+
+    switch (period) {
+      case 'Today': // Show last 7 days for context
+        transactions = _transactions.where((t) => t.date.isAfter(DateTime.now().subtract(const Duration(days: 7)))).toList();
+        startDate = DateTime.now().subtract(const Duration(days: 6));
+        days = 7;
+        break;
+      case 'This Week':
+        transactions = weekTransactions;
+        startDate = DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1));
+        days = 7;
+        break;
+      case 'This Month':
+        transactions = monthTransactions;
+        startDate = DateTime(DateTime.now().year, DateTime.now().month, 1);
+        days = DateTime(DateTime.now().year, DateTime.now().month + 1, 0).day;
+        break;
+      case 'Last 30 Days':
+        transactions = _transactions.where((t) => t.date.isAfter(DateTime.now().subtract(const Duration(days: 30)))).toList();
+        startDate = DateTime.now().subtract(const Duration(days: 29));
+        days = 30;
+        break;
+      default:
+        transactions = monthTransactions;
+        startDate = DateTime(DateTime.now().year, DateTime.now().month, 1);
+        days = DateTime(DateTime.now().year, DateTime.now().month + 1, 0).day;
+        break;
+    }
+
+    List<FlSpot> realIncome = [];
+    List<FlSpot> realExpenses = [];
+    List<FlSpot> budgetIncome = [];
+    List<FlSpot> budgetExpenses = [];
+    double cumulativeRealIncome = 0;
+    double cumulativeRealExpense = 0;
+    double cumulativeBudgetIncome = 0;
+    double cumulativeBudgetExpense = 0;
+    double maxY = 0;
+
+    for (int i = 0; i < days; i++) {
+      final date = startDate.add(Duration(days: i));
+      final dayTransactions = transactions.where((t) => t.date.year == date.year && t.date.month == date.month && t.date.day == date.day).toList();
+      final dayBudgets = _categoryBudgets.where((b) => b.weekStartDate.isBefore(date.add(const Duration(days: 1))) && b.weekStartDate.add(const Duration(days: 7)).isAfter(date)).toList();
+      
+      cumulativeRealIncome += dayTransactions.where((t) => t.type == model.TransactionType.income).fold(0.0, (sum, t) => sum + t.amount);
+      cumulativeRealExpense += dayTransactions.where((t) => t.type == model.TransactionType.expense).fold(0.0, (sum, t) => sum + t.amount);
+      cumulativeBudgetIncome += dayBudgets.where((b) => b.type == model.TransactionType.income).fold(0.0, (sum, b) => sum + b.expectedAmount) / 7;
+      cumulativeBudgetExpense += dayBudgets.where((b) => b.type == model.TransactionType.expense).fold(0.0, (sum, b) => sum + b.expectedAmount) / 7;
+
+      realIncome.add(FlSpot(i.toDouble(), cumulativeRealIncome));
+      realExpenses.add(FlSpot(i.toDouble(), cumulativeRealExpense));
+      budgetIncome.add(FlSpot(i.toDouble(), cumulativeBudgetIncome));
+      budgetExpenses.add(FlSpot(i.toDouble(), cumulativeBudgetExpense));
+      
+      maxY = [maxY, cumulativeRealIncome, cumulativeRealExpense, cumulativeBudgetIncome, cumulativeBudgetExpense].reduce(max);
+    }
+    
+    return ChartData(
+      realIncome: realIncome,
+      realExpenses: realExpenses,
+      budgetIncome: budgetIncome,
+      budgetExpenses: budgetExpenses,
+      maxY: maxY > 0 ? maxY * 1.2 : 10.0,
+    );
   }
 } 
