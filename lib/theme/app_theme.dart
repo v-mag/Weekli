@@ -51,13 +51,13 @@ class AppTheme {
       elevation: 0,
       centerTitle: true,
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: cardBackground,
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),
-      shadowColor: Colors.black.withValues(alpha:  0.1),
+      shadowColor: Colors.black.withValues(alpha: 0.1),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
@@ -122,7 +122,7 @@ class AppTheme {
       elevation: 0,
       centerTitle: true,
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: darkSurfaceColor,
       elevation: 2,
       shape: RoundedRectangleBorder(
