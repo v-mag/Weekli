@@ -8,7 +8,7 @@ import '../../theme/app_theme.dart';
 class BudgetEntryStep extends StatelessWidget {
   final model.TransactionType transactionType;
   final TextEditingController categoryController;
-  final List<TextEditingController> amountControllers;
+  final TextEditingController amountController;
   final DateTime selectedDate;
   final Function(BuildContext) onWeekTap;
   final VoidCallback onNext;
@@ -17,7 +17,7 @@ class BudgetEntryStep extends StatelessWidget {
     super.key,
     required this.transactionType,
     required this.categoryController,
-    required this.amountControllers,
+    required this.amountController,
     required this.selectedDate,
     required this.onWeekTap,
     required this.onNext,
@@ -49,7 +49,7 @@ class BudgetEntryStep extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           TransactionAmountInput(
-            amountControllers: amountControllers,
+            amountController: amountController,
             allowMultiple: false, // Budget entries only allow single amount
           ),
           const SizedBox(height: 16),

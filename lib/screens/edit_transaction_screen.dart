@@ -18,7 +18,7 @@ class EditTransactionScreen extends StatefulWidget {
 class _EditTransactionScreenState extends State<EditTransactionScreen> {
   final _titleController = TextEditingController();
   final _categoryController = TextEditingController();
-  final List<TextEditingController> _amountControllers = [TextEditingController()];
+  final _amountController = TextEditingController();
   
   late model.TransactionType _transactionType;
   late DateTime _selectedDate;
@@ -41,7 +41,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     // Initialize form fields
     _titleController.text = transaction.title;
     _categoryController.text = transaction.category ?? '';
-    _amountControllers[0].text = transaction.amount.toString();
+    _amountController.text = transaction.amount.toString();
     
     _transactionType = transaction.type;
     _selectedDate = transaction.date;
@@ -53,9 +53,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
   void dispose() {
     _titleController.dispose();
     _categoryController.dispose();
-    for (var controller in _amountControllers) {
-      controller.dispose();
-    }
+    _amountController.dispose();
     super.dispose();
   }
 
@@ -181,7 +179,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
       return false;
     }
     
-    if (_amountControllers[0].text.trim().isEmpty) {
+    if (_amountController.text.trim().isEmpty) {
       _showErrorSnackBar('Please enter an amount');
       return false;
     }
@@ -201,8 +199,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
     setState(() => _isLoading = true);
     
     try {
-      final amountInput = _amountInputKey.currentState! as dynamic;
-      final totalAmount = amountInput.getTotalAmount() as double;
+      final totalAmount = double.tryParse(_amountController.text) ?? 0.0;
       
       final updatedTransaction = widget.transaction.copyWith(
         title: _titleController.text.trim(),
@@ -378,7 +375,7 @@ class _EditTransactionScreenState extends State<EditTransactionScreen> {
             const SizedBox(height: 8),
             TransactionAmountInput(
               key: _amountInputKey,
-              amountControllers: _amountControllers,
+              amountController: _amountController,
               allowMultiple: true,
             ),
             

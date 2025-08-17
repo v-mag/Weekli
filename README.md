@@ -123,23 +123,36 @@ lib/
 
 ## Screenshots 📸
 
-### Dashboard Overview
-![Dashboard Overview](docs/images/Simulator%20Screenshot%20-%20iPhone%2016e%20-%202025-08-17%20at%2011.48.29.png)
-
-### Transaction Management
-![Transaction Form](docs/images/Simulator%20Screenshot%20-%20iPhone%2016e%20-%202025-08-17%20at%2011.48.33.png)
-
-### Budget Planning
-![Budget Screen](docs/images/Simulator%20Screenshot%20-%20iPhone%2016e%20-%202025-08-17%20at%2011.48.37.png)
-
-### Calendar View
-![Calendar View](docs/images/Simulator%20Screenshot%20-%20iPhone%2016e%20-%202025-08-17%20at%2011.48.42.png)
-
-### Settings & Configuration
-![Settings Screen](docs/images/Simulator%20Screenshot%20-%20iPhone%2016e%20-%202025-08-17%20at%2011.48.45.png)
-
-### Transaction History
-![Transaction History](docs/images/Simulator%20Screenshot%20-%20iPhone%2016e%20-%202025-08-17%20at%2011.48.50.png)
+<table>
+  <tr>
+    <td align="center">
+      <b>Dashboard Overview</b><br/>
+      <img src="docs/images/dashboard-overview.png" width="200"/>
+    </td>
+    <td align="center">
+      <b>Transaction Wizard</b><br/>
+      <img src="docs/images/transaction-wizard.png" width="200"/>
+    </td>
+    <td align="center">
+      <b>Budget Planning</b><br/>
+      <img src="docs/images/budget-screen.png" width="200"/>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <b>Calendar View</b><br/>
+      <img src="docs/images/calendar-view.png" width="200"/>
+    </td>
+    <td align="center">
+      <b>Settings & Configuration</b><br/>
+      <img src="docs/images/settings-screen.png" width="200"/>
+    </td>
+    <td align="center">
+      <b>Transactions List</b><br/>
+      <img src="docs/images/transactions-list.png" width="200"/>
+    </td>
+  </tr>
+</table>
 
 ## Usage Guide 📖
 

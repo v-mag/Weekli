@@ -10,7 +10,7 @@ class ManualEntryStep extends StatelessWidget {
   final model.TransactionType transactionType;
   final TextEditingController titleController;
   final TextEditingController categoryController;
-  final List<TextEditingController> amountControllers;
+  final TextEditingController amountController;
   final DateTime selectedDate;
   final VoidCallback onDateTap;
   final VoidCallback onNext;
@@ -21,7 +21,7 @@ class ManualEntryStep extends StatelessWidget {
     required this.transactionType,
     required this.titleController,
     required this.categoryController,
-    required this.amountControllers,
+    required this.amountController,
     required this.selectedDate,
     required this.onDateTap,
     required this.onNext,
@@ -61,32 +61,14 @@ class ManualEntryStep extends StatelessWidget {
             ),
             const SizedBox(height: 16),
           ],
-          
-          // Amount field with display total for multiple amounts
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (amountControllers.length > 1)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Text(
-                    'Total: \$${_getTotalAmount().toStringAsFixed(2)}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: theme.primaryColor,
-                    ),
-                  ),
-                ),
-            ],
-          ),
+                    
           Text(
             'Amount',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: theme.colorScheme.onSurface),
           ),
           const SizedBox(height: 8),
           TransactionAmountInput(
-            amountControllers: amountControllers,
+            amountController: amountController,
             allowMultiple: transactionMode == TransactionMode.actual,
           ),
 
@@ -131,11 +113,5 @@ class ManualEntryStep extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  double _getTotalAmount() {
-    return amountControllers.fold(0.0, (sum, controller) {
-      return sum + (double.tryParse(controller.text) ?? 0.0);
-    });
   }
 } 

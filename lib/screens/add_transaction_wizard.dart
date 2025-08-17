@@ -46,7 +46,7 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
   final _categoryController = TextEditingController();
   
   // Amount controllers for multiple amounts
-  final List<TextEditingController> _amountControllers = [TextEditingController()];
+  final _amountController = TextEditingController();
   
   DateTime _selectedDate = DateTime.now();
   model.RecurrenceType _recurrenceType = model.RecurrenceType.none;
@@ -78,9 +78,7 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
     _categoryController.dispose();
     
     // Dispose all amount controllers
-    for (var controller in _amountControllers) {
-      controller.dispose();
-    }
+    _amountController.dispose();
     
     super.dispose();
   }
@@ -122,7 +120,7 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
         BudgetEntryStep(
           transactionType: _transactionType,
           categoryController: _categoryController,
-          amountControllers: _amountControllers,
+          amountController: _amountController,
           selectedDate: _selectedDate,
           onWeekTap: _selectWeek,
           onNext: _validateBudgetAndNext,
@@ -162,7 +160,7 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
           transactionType: _transactionType,
           titleController: _titleController,
           categoryController: _categoryController,
-          amountControllers: _amountControllers,
+          amountController: _amountController,
           selectedDate: _selectedDate,
           onDateTap: _selectDate,
           onNext: _validateAndNext,
@@ -570,7 +568,7 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
   }
 
   void _validateBudgetAndNext() {
-    final amount = double.tryParse(_amountControllers[0].text) ?? 0;
+    final amount = double.tryParse(_amountController.text) ?? 0;
     
     if (amount <= 0 || _categoryController.text.trim().isEmpty) {
       showCupertinoDialog(
@@ -602,9 +600,8 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
     if (missingTitle ||
         totalAmount <= 0 ||
         _categoryController.text.trim().isEmpty ||
-        _amountControllers.any((controller) => 
-          controller.text.trim().isNotEmpty && 
-          (double.tryParse(controller.text) == null || double.tryParse(controller.text)! <= 0))) {
+        _amountController.text.trim().isNotEmpty && 
+        (double.tryParse(_amountController.text) == null || double.tryParse(_amountController.text)! <= 0)) {
       
       showCupertinoDialog(
         context: context,
@@ -701,7 +698,7 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
   Future<void> _saveBudgetEntry() async {
     final categoryBudget = CategoryBudget(
       category: _categoryController.text.trim(),
-      expectedAmount: double.parse(_amountControllers[0].text),
+      expectedAmount: double.parse(_amountController.text),
       type: _transactionType,
       weekStartDate: _getWeekStart(_selectedDate),
       createdAt: DateTime.now(),
@@ -712,10 +709,8 @@ class _AddTransactionWizardState extends State<AddTransactionWizard> {
 
   double _getTotalAmount() {
     double total = 0.0;
-    for (var controller in _amountControllers) {
-      if (controller.text.trim().isNotEmpty) {
-        total += double.tryParse(controller.text) ?? 0.0;
-      }
+    if (_amountController.text.trim().isNotEmpty) {
+      total += double.tryParse(_amountController.text) ?? 0.0;
     }
     return total;
   }

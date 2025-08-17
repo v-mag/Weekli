@@ -5,13 +5,13 @@ import 'package:intl/intl.dart';
 import '../models/transaction.dart' as model;
 
 class TransactionAmountInput extends StatefulWidget {
-  final List<TextEditingController> amountControllers;
+  final TextEditingController amountController;
   final VoidCallback? onAmountChanged;
   final bool allowMultiple;
 
   const TransactionAmountInput({
     super.key,
-    required this.amountControllers,
+    required this.amountController,
     this.onAmountChanged,
     this.allowMultiple = true,
   });
@@ -21,87 +21,33 @@ class TransactionAmountInput extends StatefulWidget {
 }
 
 class _TransactionAmountInputState extends State<TransactionAmountInput> {
-  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
-
-  double getTotalAmount() {
-    return widget.amountControllers.fold(0.0, (sum, controller) {
-      return sum + (double.tryParse(controller.text) ?? 0.0);
-    });
-  }
-
-  Widget _buildAmountFieldItem(int index, Animation<double> animation) {
-    if (index >= widget.amountControllers.length) {
-      return const SizedBox.shrink();
-    }
-    final theme = Theme.of(context);
-
-    return SlideTransition(
-      position: animation.drive(Tween(begin: const Offset(1, 0), end: Offset.zero)),
-      child: Row(
-        children: [            
-          // Amount input
-          Expanded(
-            flex: 2,
-            child: CupertinoTextField(
-              controller: widget.amountControllers[index],
-              decoration: BoxDecoration(
-                color: theme.inputDecorationTheme.fillColor,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: theme.inputDecorationTheme.enabledBorder?.borderSide.color ?? theme.dividerColor,
-                  width: 1.0,
-                ),
-              ),
-              placeholder: 'Amount',
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-              ],
-              padding: const EdgeInsets.all(16),
-              style: TextStyle(color: theme.colorScheme.onSurface),
-              placeholderStyle: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.4)),
-              onChanged: (_) => widget.onAmountChanged?.call(),
-            ),
-          ),
-          
-          // const SizedBox(width: 12),
-          
-          // Add button (only show on first field if multiple allowed)
-          // if (widget.allowMultiple && index == 0 && widget.amountControllers.length < 5)
-          //   IconButton(
-          //     onPressed: _addAmountField,
-          //     icon: const Icon(Icons.add_circle_outline, size: 20),
-          //     color: AppTheme.primaryColor,
-          //     constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-          //   ),
-      
-          //   // Remove button (only show for additional fields)
-          // if (index > 0)
-          //   IconButton(
-          //     onPressed: () => _removeAmountField(index),
-          //     icon: const Icon(Icons.remove_circle_outline, size: 20),
-          //     color: AppTheme.primaryColor,
-          //     constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-          //   ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        AnimatedList(
-          key: _listKey,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          initialItemCount: widget.amountControllers.length,
-          itemBuilder: (context, index, animation) {
-            return _buildAmountFieldItem(index, animation);
-          },
+    final theme = Theme.of(context);
+
+    return CupertinoTextField(
+      controller: widget.amountController,
+      decoration: BoxDecoration(
+        color: theme.inputDecorationTheme.fillColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color:
+              theme.inputDecorationTheme.enabledBorder?.borderSide.color ??
+              theme.dividerColor,
+          width: 1.0,
         ),
+      ),
+      placeholder: 'Amount',
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
       ],
+      padding: const EdgeInsets.all(16),
+      style: TextStyle(color: theme.colorScheme.onSurface),
+      placeholderStyle: TextStyle(
+        color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+      ),
+      onChanged: (_) => widget.onAmountChanged?.call(),
     );
   }
 }
@@ -119,26 +65,41 @@ class TransactionCategoryInput extends StatefulWidget {
   });
 
   @override
-  State<TransactionCategoryInput> createState() => _TransactionCategoryInputState();
+  State<TransactionCategoryInput> createState() =>
+      _TransactionCategoryInputState();
 }
 
 class _TransactionCategoryInputState extends State<TransactionCategoryInput> {
   final FocusNode _focusNode = FocusNode();
   final GlobalKey _fieldKey = GlobalKey();
-  
+
   final List<String> _incomeCategories = [
-    'Salary', 'Freelance', 'Investment', 'Business', 'Gift', 'Other Income',
+    'Salary',
+    'Freelance',
+    'Investment',
+    'Business',
+    'Gift',
+    'Other Income',
   ];
 
   final List<String> _expenseCategories = [
-    'Food & Dining', 'Transportation', 'Shopping', 'Entertainment', 'Bills & Utilities',
-    'Healthcare', 'Education', 'Travel', 'Groceries', 'Rent', 'Other Expense',
+    'Food & Dining',
+    'Transportation',
+    'Shopping',
+    'Entertainment',
+    'Bills & Utilities',
+    'Healthcare',
+    'Education',
+    'Travel',
+    'Groceries',
+    'Rent',
+    'Other Expense',
   ];
 
-  List<String> get _categories => 
-      widget.transactionType == model.TransactionType.income 
-          ? _incomeCategories 
-          : _expenseCategories;
+  List<String> get _categories =>
+      widget.transactionType == model.TransactionType.income
+      ? _incomeCategories
+      : _expenseCategories;
 
   IconData _getCategoryIcon(String category) {
     switch (category) {
@@ -155,7 +116,7 @@ class _TransactionCategoryInputState extends State<TransactionCategoryInput> {
         return Icons.card_giftcard;
       case 'Other Income':
         return Icons.add_circle;
-      
+
       // Expense categories
       case 'Food & Dining':
         return Icons.restaurant;
@@ -179,7 +140,7 @@ class _TransactionCategoryInputState extends State<TransactionCategoryInput> {
         return Icons.home;
       case 'Other Expense':
         return Icons.remove_circle;
-      
+
       default:
         return Icons.category;
     }
@@ -205,34 +166,46 @@ class _TransactionCategoryInputState extends State<TransactionCategoryInput> {
               return _categories;
             }
             return _categories.where((String option) {
-              return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+              return option.toLowerCase().contains(
+                textEditingValue.text.toLowerCase(),
+              );
             });
           },
-          fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
-            return CupertinoTextField(
-              key: _fieldKey,
-              controller: textEditingController,
-              focusNode: focusNode,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: theme.inputDecorationTheme.fillColor,
-                borderRadius: BorderRadius.circular(12.0),
-                border: Border.all(
-                  color: focusNode.hasFocus
-                      ? theme.primaryColor
-                      : (theme.inputDecorationTheme.enabledBorder?.borderSide.color ?? theme.dividerColor),
-                  width: focusNode.hasFocus ? 2.0 : 1.0,
-                ),
-              ),
-              placeholder: widget.placeholder ?? 'Category',
-              style: TextStyle(color: theme.colorScheme.onSurface),
-              placeholderStyle: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.4)),
-              onSubmitted: (String value) => onFieldSubmitted(),
-            );
-          },
+          fieldViewBuilder:
+              (context, textEditingController, focusNode, onFieldSubmitted) {
+                return CupertinoTextField(
+                  key: _fieldKey,
+                  controller: textEditingController,
+                  focusNode: focusNode,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: theme.inputDecorationTheme.fillColor,
+                    borderRadius: BorderRadius.circular(12.0),
+                    border: Border.all(
+                      color: focusNode.hasFocus
+                          ? theme.primaryColor
+                          : (theme
+                                    .inputDecorationTheme
+                                    .enabledBorder
+                                    ?.borderSide
+                                    .color ??
+                                theme.dividerColor),
+                      width: focusNode.hasFocus ? 2.0 : 1.0,
+                    ),
+                  ),
+                  placeholder: widget.placeholder ?? 'Category',
+                  style: TextStyle(color: theme.colorScheme.onSurface),
+                  placeholderStyle: TextStyle(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                  ),
+                  onSubmitted: (String value) => onFieldSubmitted(),
+                );
+              },
           optionsViewBuilder: (context, onSelected, options) {
-            final RenderBox? fieldBox = _fieldKey.currentContext?.findRenderObject() as RenderBox?;
-            final fieldWidth = fieldBox?.size.width ?? MediaQuery.of(context).size.width;
+            final RenderBox? fieldBox =
+                _fieldKey.currentContext?.findRenderObject() as RenderBox?;
+            final fieldWidth =
+                fieldBox?.size.width ?? MediaQuery.of(context).size.width;
 
             return Positioned.fill(
               child: GestureDetector(
@@ -261,14 +234,21 @@ class _TransactionCategoryInputState extends State<TransactionCategoryInput> {
                                   padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
                                     border: Border(
-                                      bottom: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5)),
+                                      bottom: BorderSide(
+                                        color: theme.dividerColor.withValues(
+                                          alpha: 0.5,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                   child: Row(
                                     children: [
                                       Icon(
                                         _getCategoryIcon(option),
-                                        color: theme.brightness == Brightness.light ? theme.primaryColor : theme.colorScheme.onSurface,
+                                        color:
+                                            theme.brightness == Brightness.light
+                                            ? theme.primaryColor
+                                            : theme.colorScheme.onSurface,
                                         size: 20,
                                       ),
                                       const SizedBox(width: 12),
@@ -324,16 +304,24 @@ class TransactionDateInput extends StatelessWidget {
           color: theme.inputDecorationTheme.fillColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: theme.inputDecorationTheme.enabledBorder?.borderSide.color ?? theme.dividerColor,
+            color:
+                theme.inputDecorationTheme.enabledBorder?.borderSide.color ??
+                theme.dividerColor,
             width: 1.0,
           ),
         ),
         child: Row(
           children: [
-            Icon(CupertinoIcons.calendar, color: theme.brightness == Brightness.light ? theme.primaryColor : theme.colorScheme.onSurface),
+            Icon(
+              CupertinoIcons.calendar,
+              color: theme.brightness == Brightness.light
+                  ? theme.primaryColor
+                  : theme.colorScheme.onSurface,
+            ),
             const SizedBox(width: 12),
             Text(
-              displayFormat?.call(selectedDate) ?? DateFormat('MMM dd, yyyy').format(selectedDate),
+              displayFormat?.call(selectedDate) ??
+                  DateFormat('MMM dd, yyyy').format(selectedDate),
               style: TextStyle(color: theme.colorScheme.onSurface),
             ),
           ],
@@ -356,7 +344,8 @@ class LoadingSuccessAnimation extends StatefulWidget {
   });
 
   @override
-  State<LoadingSuccessAnimation> createState() => _LoadingSuccessAnimationState();
+  State<LoadingSuccessAnimation> createState() =>
+      _LoadingSuccessAnimationState();
 }
 
 class _LoadingSuccessAnimationState extends State<LoadingSuccessAnimation> {
@@ -371,11 +360,11 @@ class _LoadingSuccessAnimationState extends State<LoadingSuccessAnimation> {
   void _startAnimation() async {
     // Show loading for 1 second
     await Future.delayed(const Duration(milliseconds: 1000));
-    
+
     if (mounted) {
       setState(() => _showSuccessCheck = true);
       await Future.delayed(const Duration(milliseconds: 1500));
-      
+
       if (mounted) {
         widget.onComplete();
       }
@@ -402,9 +391,9 @@ class _LoadingSuccessAnimationState extends State<LoadingSuccessAnimation> {
                   )
                 : const CupertinoActivityIndicator(radius: 30),
           ),
-          
+
           const SizedBox(height: 32),
-          
+
           // Status text
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 400),
@@ -423,4 +412,4 @@ class _LoadingSuccessAnimationState extends State<LoadingSuccessAnimation> {
       ),
     );
   }
-} 
+}
