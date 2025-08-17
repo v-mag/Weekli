@@ -5,12 +5,14 @@ A modern Flutter app for managing your personal finances with a focus on weekly 
 ## Features ✨
 
 ### 📈 **Dashboard Overview**
+
 - Real-time balance tracking
 - Daily, weekly, and monthly financial summaries
 - Interactive charts showing income vs expenses over time
 - Recent transaction history
 
 ### 💰 **Transaction Management**
+
 - Add income and expense transactions
 - Categorize transactions (Food & Dining, Transportation, Shopping, etc.)
 - Set transaction titles and descriptions
@@ -18,18 +20,21 @@ A modern Flutter app for managing your personal finances with a focus on weekly 
 - Recurring transaction support (daily, weekly, monthly, yearly)
 
 ### 📋 **Budget Planning**
+
 - Set weekly budget expectations for different categories
 - Track actual spending against budgeted amounts
 - Visual budget vs actual comparisons
 - Weekly budget rollover
 
 ### 🎨 **Modern UI/UX**
+
 - Clean, intuitive interface
 - Dark and light theme support
 - Smooth animations and transitions
 - Responsive design for all screen sizes
 
 ### 📱 **Cross-Platform**
+
 - iOS and Android support
 - macOS desktop app
 - Web browser support
@@ -37,6 +42,7 @@ A modern Flutter app for managing your personal finances with a focus on weekly 
 ## Getting Started 🚀
 
 ### Prerequisites
+
 - Flutter SDK (3.9.0 or higher)
 - Dart 3.9.0 or higher
 - Android Studio / Xcode (for mobile development)
@@ -44,12 +50,14 @@ A modern Flutter app for managing your personal finances with a focus on weekly 
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone <repository-url>
    cd Weekli
    ```
 
 2. **Install dependencies**
+
    ```bash
    flutter pub get
    ```
@@ -62,21 +70,25 @@ A modern Flutter app for managing your personal finances with a focus on weekly 
 ### Building for Production
 
 **Android:**
+
 ```bash
 flutter build apk --release
 ```
 
 **iOS:**
+
 ```bash
 flutter build ios --release
 ```
 
 **macOS:**
+
 ```bash
 flutter build macos --release
 ```
 
 **Web:**
+
 ```bash
 flutter build web --release
 ```
@@ -130,26 +142,26 @@ lib/
       <img src="docs/images/dashboard-overview.png" width="200"/>
     </td>
     <td align="center">
-      <b>Transaction Wizard</b><br/>
-      <img src="docs/images/transaction-wizard.png" width="200"/>
-    </td>
-    <td align="center">
-      <b>Budget Planning</b><br/>
-      <img src="docs/images/budget-screen.png" width="200"/>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
       <b>Calendar View</b><br/>
       <img src="docs/images/calendar-view.png" width="200"/>
     </td>
     <td align="center">
-      <b>Settings & Configuration</b><br/>
-      <img src="docs/images/settings-screen.png" width="200"/>
-    </td>
-    <td align="center">
       <b>Transactions List</b><br/>
       <img src="docs/images/transactions-list.png" width="200"/>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <b>Budget Planning</b><br/>
+      <img src="docs/images/budget-screen.png" width="200"/>
+    </td>
+    <td align="center">
+      <b>Add Entry</b><br/>
+      <img src="docs/images/add-entry.png" width="200"/>
+    </td>
+      <td align="center">
+      <b>Transaction Wizard</b><br/>
+      <img src="docs/images/transaction-wizard.png" width="200"/>
     </td>
   </tr>
 </table>
@@ -157,6 +169,7 @@ lib/
 ## Usage Guide 📖
 
 ### Adding Transactions
+
 1. Tap the "+" button on the dashboard
 2. Choose between "Actual Transaction" or "Budget Entry"
 3. Select transaction type (Income/Expense)
@@ -166,12 +179,14 @@ lib/
 7. Confirm and save
 
 ### Setting Budgets
+
 1. Go to the budget screen
 2. Select a category and week
 3. Set your expected amount
 4. Track actual spending against your budget
 
 ### Viewing Reports
+
 - **Dashboard**: Overview of your financial health
 - **Transactions**: Detailed list of all transactions
 - **Calendar**: Monthly view with transaction markers
@@ -192,6 +207,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support 💬
 
 If you encounter any issues or have questions:
+
 - Create an issue on GitHub
 - Check the existing issues for solutions
 - Review the Flutter documentation for general help
